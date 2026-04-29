@@ -1,0 +1,134 @@
+{
+  "skill_name": "hf-strategy-discovery",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我们想做一个面向设计团队的评审协作产品，但现在还没想清楚市场有多大、竞品情况如何、这个方向是否值得投入。先别写功能规格，先帮我做战略洞察。",
+      "expected_output": "应先收敛市场洞察、竞品分析和战略方向，而不是直接输出功能规格或产品 thesis。需确认当前 HF profile 为 full 才能激活本 skill。",
+      "files": [],
+      "expectations": [
+        "确认 HF profile 是否为 full（本 skill 仅 full profile 激活）",
+        "确定产品规模档位（small/medium/large）",
+        "执行 5看分析：行业/市场/竞争/自己/机会",
+        "输出战略洞察草稿，而不是功能规格",
+        "下一步为用户评审确认"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我先倒一些零散信息：目标市场可能是设计团队和广告公司，竞品有 Figma、Zeplin、InVision，市场规模大概 5000 万美元，技术趋势是 AI 辅助设计。你按战略发现节点正确推进。",
+      "expected_output": "应把零散信息收敛为结构化的 5看分析，形成三定决策输出（战略控制点、目标、策略），而不是把这些点直接写成产品需求。",
+      "files": [],
+      "expectations": [
+        "对零散信息做归纳而不是逐条照抄",
+        "执行 PESTEL 分析（政策/经济/社会/技术/环境/法律）",
+        "执行竞品分析（CPM 矩阵或波特五力）",
+        "输出 Bridge to Product Discovery",
+        "不把战略洞察直接写成产品规格"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "这个项目刚初始化，目录结构已有但档0必需文档不完整。README.md 没有 ADR 索引链接，CHANGELOG.md 不存在，docs/adr/0001 也缺失。请先做战略洞察，同时补齐档0必需文档。",
+      "expected_output": "应先检查档0必需文档状态，执行战略洞察分析后，在 Step 6 补齐档0必需文档（ADR-0001、README.md、CHANGELOG.md），并标记待用户评审确认。",
+      "files": [],
+      "expectations": [
+        "检查档0必需文档完整性（README.md / CHANGELOG.md / docs/adr/0001）",
+        "执行战略洞察分析流程",
+        "补齐档0必需文档（从战略洞察结果提取内容）",
+        "标记档0补齐状态为已完成（待用户评审确认）",
+        "用户确认后才能进入 hf-product-discovery"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "我们讨论战略时有人开始说要上 PostgreSQL、做 comment_threads 表、再加一个 feedback-service。现在还没做市场分析和竞品分析。你按战略发现节点正确推进。",
+      "expected_output": "应识别这些属于设计泄漏，战略发现阶段只能保留业务意图并收敛市场洞察、竞品分析，而不是把数据库表、服务名写成战略结论。",
+      "files": [],
+      "expectations": [
+        "识别 PostgreSQL、表结构、服务名属于实现或设计泄漏",
+        "保留业务意图而不是直接采纳技术方案",
+        "执行 5看分析而不是技术设计",
+        "不把战略洞察草稿写成设计文档"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "我们已经确认战略方向，但战略洞察文档里还没有 Bridge to Product Discovery，也没有明确哪些 Product Opportunities 值得进入 hf-product-discovery。请继续做战略发现。",
+      "expected_output": "应显式补出 Bridge to Product Discovery，明确 Product Opportunities 清单、Desired Outcome、Success Threshold 和关键假设，而不是在没有桥接语义时直接进入 hf-product-discovery。",
+      "files": [],
+      "expectations": [
+        "识别缺少 Bridge to Product Discovery 是当前战略洞察缺口",
+        "明确 Product Opportunities 清单（支持 ≥1 个）",
+        "标注优先级（P0/P1/P2）和 wedge",
+        "下一步为用户评审确认",
+        "不会因为战略方向已确定就跳过 Bridge 输出"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "当前 HF profile 是 standard，用户要求做战略洞察。请按正确流程处理。",
+      "expected_output": "应识别本 skill 仅在 full profile 下激活，提示用户需升级到 full profile 或跳过本 skill，而不是在 standard profile 下强行执行。",
+      "files": [],
+      "expectations": [
+        "检查当前 HF profile（本 skill 仅 full profile 激活）",
+        "提示用户需升级到 full profile 或跳过本 skill",
+        "不会在 standard profile 下强行执行战略发现流程",
+        "建议用户通过 hf-workflow-router 升级 profile 或直接进入 hf-product-discovery"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "这是一个 MVP 项目，团队只有 3 人，周期 2 个月。请做战略洞察分析。",
+      "expected_output": "应确定产品规模档位为 small，执行对应密度的分析（目标用户 + 核心痛点 + 快速画像 + 可行性评估），而不是执行 large 规模的全套分析。",
+      "files": [],
+      "expectations": [
+        "确定产品规模档位为 small",
+        "执行 small 档位对应的分析密度",
+        "不激活 PESTEL、竞品分析等 large 档位工具",
+        "输出 1 个战略控制点 + 1-2 个成功阈值指标",
+        "输出长度 ≤ 2000 字"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "这是一个企业级产品矩阵，团队 200 人，规划周期 3 年。请做战略洞察分析。",
+      "expected_output": "应确定产品规模档位为 large，执行对应密度的分析（PESTEL 6 维度 + 技术成熟度曲线 + 5+ 竞品 + 动态监控 + Multi-Agent 辩论），输出完整的战略洞察草稿。",
+      "files": [],
+      "expectations": [
+        "确定产品规模档位为 large",
+        "执行 PESTEL 6 维度分析",
+        "执行技术预见分析（Gartner 曲线 + S 曲线）",
+        "激活 Multi-Agent 辩论（所有争议决策强制激活）",
+        "输出长度 10000+ 字 + 辩论记录"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "战略方向有争议：一部分人认为应该做设计协作平台，另一部分人认为应该做 AI 辅助设计工具。请通过头脑风暴辩论帮助收敛。",
+      "expected_output": "应激活 Multi-Agent 辩论流程：proponent（正方）论证 → challenger（反方）质疑 → arbiter（评委）综合，形成最终决策建议（含置信度）。",
+      "files": [],
+      "expectations": [
+        "激活 Multi-Agent 辩论流程",
+        "Phase 1：主 Agent 整理用户输入，形成战略方案 v1",
+        "Phase 3：proponent Agent 正方论证",
+        "Phase 4：challenger Agent 反方质疑",
+        "Phase 5：arbiter Agent 评委综合",
+        "输出辩论记录 + 最终决策建议（含置信度）"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "我们已经完成了战略洞察，档0必需文档已补齐，用户评审已确认。下一步应该做什么？",
+      "expected_output": "应识别当前状态满足进入 hf-product-discovery 的条件（档0补齐 + 用户确认 + Bridge 存在），建议下一步为 hf-product-discovery。",
+      "files": [],
+      "expectations": [
+        "检查 hf-product-discovery 进入条件是否满足",
+        "档0必需文档已补齐 + 用户评审已确认",
+        "Bridge to Product Discovery 存在",
+        "建议下一步为 hf-product-discovery",
+        "不会停留在战略发现阶段"
+      ]
+    }
+  ]
+}

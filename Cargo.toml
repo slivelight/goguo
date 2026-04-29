@@ -1,0 +1,9 @@
+[
+lints.clippy
+]
+pedantic = "warn"
+nursery = "warn"
+cargo = "warn"
+# 按需放宽的常见规则（保持项目编译干净）
+needless_return = "allow"
+module_name_repetitions = "allow"

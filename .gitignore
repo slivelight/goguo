@@ -1,0 +1,239 @@
+# ============================================
+# OS / 系统文件
+# ============================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# WSL 相关
+.wslconfig
+*.wsl
+wsl.conf
+
+# ============================================
+# IDE / 编辑器 (VSCode)
+# ============================================
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# VSCode 用户特定文件
+.vscode/*.code-snippets
+.vscode/argv.json
+.history/
+
+# ============================================
+# AI Agent 工具
+# ============================================
+
+# Claude Desktop / Claude Code
+.claude/
+.claude.json
+.claude.json.backup
+.claude_history/
+claude_desktop_config.json
+claude_desktop_config.local.json
+.claude_credentials/
+
+# Codex (OpenAI Codex)
+.codex/
+.codex_config.json
+.codex_config.local.json
+.codex_cache/
+.codex_history/
+.codex_logs/
+.codex_credentials/
+
+# OpenCode
+.opencode/
+.opencode_config.json
+.opencode_config.local.json
+.opencode_cache/
+.opencode_logs/
+.opencode_history/
+.opencode_state/
+
+# 通用 Agent 配置（包含密钥的）
+.agent/
+.agents/
+.ai/
+.ai_config/
+.cursor/
+.windsurf/
+
+# ============================================
+# Rust / Cargo
+# ============================================
+/target/
+**/target/
+Cargo.lock
+**/Cargo.lock
+
+# 编译输出
+*.rs.bk
+*.rlib
+*.prof
+*.d
+*.o
+*.so
+*.dylib
+*.dll
+
+# 调试信息
+*.pdb
+*.exe
+*.exp
+*.lib
+*.ilk
+*.pdb
+
+# Rust 工具链
+rustfmt.toml
+.rustfmt.toml
+clippy.toml
+.clippy.toml
+
+# ============================================
+# Tauri 特定
+# ============================================
+
+# Tauri 构建输出
+src-tauri/target/
+src-tauri/gen/
+src-tauri/build/
+
+# Tauri 签名密钥
+src-tauri/tauri.conf.json
+src-tauri/tauri.windows.conf.json
+src-tauri/keys/
+*.key
+*.pem
+*.p12
+*.der
+private.key
+
+# Tauri 临时文件
+*.tauri.app
+.tauri/
+
+# Webview 相关
+WebView2Loader.dll
+webview2/
+
+# ============================================
+# Node.js / 前端依赖 (Tauri 前端部分)
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 前端构建产物
+dist/
+dist-ssr/
+*.local
+out/
+.next/
+.nuxt/
+
+# 包管理器锁文件（根据你的选择，建议保留一个）
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# ============================================
+# 环境变量和敏感信息
+# ============================================
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# 密钥和证书
+*.secret
+*.credentials
+*.token
+*.cert
+*.csr
+**/secrets/
+**/credentials/
+
+# 本地配置（不提交）
+*.local.json
+*.local.toml
+*.local.yaml
+*.local.yml
+
+# ============================================
+# 日志和缓存
+# ============================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+.cache/
+.parcel-cache/
+.next/cache/
+.eslintcache
+.stylelintcache
+
+# ============================================
+# 测试和覆盖率
+# ============================================
+coverage/
+*.lcov
+.nyc_output/
+*.test.log
+*.spec.log
+
+# ============================================
+# 临时文件
+# ============================================
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+~$*
+.DS_Store
+.Trash-*
+
+# ============================================
+# Docker (如果使用)
+# ============================================
+.docker/
+docker-compose.override.yml
+*.pid
+
+# ============================================
+# 项目特定
+# ============================================
+
+# 生成的文档
+docs/generated/
+target/doc/
+
+# 数据库文件（开发用）
+*.db
+*.sqlite
+*.sqlite3
+
+# 备份文件
+*.bak
+*.backup
+*.old
+
+# 压缩包
+*.zip
+*.tar.gz
+*.rar
+*.7z
