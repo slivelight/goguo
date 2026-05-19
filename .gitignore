@@ -106,7 +106,6 @@ src-tauri/gen/
 src-tauri/build/
 
 # Tauri 签名密钥
-src-tauri/tauri.conf.json
 src-tauri/tauri.windows.conf.json
 src-tauri/keys/
 *.key

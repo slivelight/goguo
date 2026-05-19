@@ -1,0 +1,1205 @@
+use serde::{Deserialize, Serialize};
+
+use crate::models::audit::AuditAction;
+use crate::models::recovery::RecoveryStatus;
+
+// ── Response DTOs ──────────────────────────────────────────────────────────
+
+/// Response for `start_initial_assessment` and `trigger_readjustment`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssessmentResponse {
+    pub version: u32,
+    pub timestamp: String,
+    pub item_count: usize,
+}
+
+/// Response for `get_state_summary`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateSummaryResponse {
+    pub total: usize,
+    pub restorable_count: usize,
+    pub detectable_count: usize,
+    pub excluded_count: usize,
+}
+
+/// Result of comparing a single item against baseline.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComparisonResultDto {
+    Match,
+    Deviated,
+    MissingInBaseline,
+}
+
+/// A single item's comparison result in `get_baseline_status`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComparisonItemDto {
+    pub state_item_id: String,
+    pub result: ComparisonResultDto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub baseline_value: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_value: Option<serde_json::Value>,
+}
+
+/// Response for `get_baseline_status`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BaselineStatusResponse {
+    pub has_baseline: bool,
+    pub items: Vec<ComparisonItemDto>,
+}
+
+/// Response for `get_service_status`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceStatusResponse {
+    pub mihomo_running: bool,
+    pub proxy_guard_restart_count: u32,
+}
+
+/// Response for `get_recovery_progress`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveryProgressResponse {
+    pub has_task: bool,
+    pub status: Option<String>,
+    pub total_items: usize,
+    pub completed_count: usize,
+    pub pending_count: usize,
+    pub succeeded: usize,
+    pub failed: usize,
+}
+
+/// Response for `get_audit_log`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditLogResponse {
+    pub total_count: usize,
+    pub records: Vec<AuditRecordDto>,
+}
+
+/// A single audit record in `get_audit_log` response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditRecordDto {
+    pub timestamp: String,
+    pub action: String,
+    pub target: String,
+    pub result: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<serde_json::Value>,
+}
+
+/// Parameters for `get_audit_log`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditLogParams {
+    #[serde(default)]
+    pub offset: usize,
+    #[serde(default = "default_limit")]
+    pub limit: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub action_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub to: Option<String>,
+}
+
+const fn default_limit() -> usize {
+    50
+}
+
+/// Maximum allowed value for `limit` in `AuditLogParams`.
+pub const MAX_AUDIT_LOG_LIMIT: usize = 200;
+
+impl AuditLogParams {
+    /// Validate and clamp the pagination parameters.
+    ///
+    /// - `offset` is capped at `total_count` (caller must handle).
+    /// - `limit` is clamped to `[1, MAX_AUDIT_LOG_LIMIT]`.
+    #[must_use]
+    pub fn validated(&self) -> Self {
+        Self {
+            offset: self.offset,
+            limit: self.limit.clamp(1, MAX_AUDIT_LOG_LIMIT),
+            action_type: self.action_type.clone(),
+            from: self.from.clone(),
+            to: self.to.clone(),
+        }
+    }
+}
+
+impl Default for AuditLogParams {
+    fn default() -> Self {
+        Self {
+            offset: 0,
+            limit: default_limit(),
+            action_type: None,
+            from: None,
+            to: None,
+        }
+    }
+}
+
+// ── Event Payloads ─────────────────────────────────────────────────────────
+
+/// Payload for `recovery:started` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveryStartedPayload {
+    pub task_id: String,
+    pub total_items: usize,
+}
+
+/// Payload for `recovery:item-completed` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveryItemCompletedPayload {
+    pub state_item_id: String,
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub failure_reason: Option<String>,
+}
+
+/// Payload for `recovery:completed` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveryCompletedPayload {
+    pub task_id: String,
+    pub succeeded: usize,
+    pub failed: usize,
+}
+
+/// Payload for `recovery:failed` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveryFailedPayload {
+    pub task_id: String,
+    pub failed_items: Vec<String>,
+}
+
+/// Payload for `baseline:confirmed` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BaselineConfirmedPayload {
+    pub version: u32,
+    pub item_count: usize,
+}
+
+/// Payload for `baseline:deviation-detected` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BaselineDeviationPayload {
+    pub deviated_items: Vec<String>,
+}
+
+/// Payload for `service:stopped` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceStoppedPayload {
+    pub reason: String,
+    pub recovery_triggered: bool,
+}
+
+/// Payload for `service:started` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceStartedPayload {
+    pub mihomo_running: bool,
+}
+
+/// Payload for `proxy-guard:recovery-triggered` event.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoRecoveryTriggeredPayload {
+    pub restart_attempts: u32,
+    pub max_attempts: u32,
+}
+
+// ── Conversion helpers ─────────────────────────────────────────────────────
+
+/// Convert a `RecoveryStatus` to its string representation for JSON responses.
+#[must_use]
+pub fn recovery_status_to_string(status: &RecoveryStatus) -> String {
+    match status {
+        RecoveryStatus::Pending => "pending".to_string(),
+        RecoveryStatus::InProgress => "in_progress".to_string(),
+        RecoveryStatus::Completed => "completed".to_string(),
+        RecoveryStatus::Failed => "failed".to_string(),
+        RecoveryStatus::UserAcknowledged => "user_acknowledged".to_string(),
+    }
+}
+
+/// Parse an action type string into an `AuditAction` for filtering.
+#[must_use]
+pub fn parse_audit_action(action: &str) -> Option<AuditAction> {
+    match action {
+        "baseline_collect" => Some(AuditAction::BaselineCollect),
+        "baseline_confirm" => Some(AuditAction::BaselineConfirm),
+        "state_restore" => Some(AuditAction::StateRestore),
+        "proxy_guard_restart" => Some(AuditAction::ProxyGuardRestart),
+        "proxy_guard_recovery" => Some(AuditAction::ProxyGuardRecovery),
+        "rule_apply" => Some(AuditAction::RuleApply),
+        "config_change" => Some(AuditAction::ConfigChange),
+        _ => None,
+    }
+}
+
+// ── Tauri Commands ─────────────────────────────────────────────────────────
+
+use std::sync::Mutex;
+
+use crate::managers::baseline_manager::{BaselineManager, ComparisonResult};
+use crate::managers::mihomo_manager::MihomoManager;
+use crate::services::audit_logger::AuditLogger;
+use crate::services::proxy_guard::ProxyGuard;
+
+/// Shared application state injected into Tauri commands via `tauri::State`.
+pub struct AppState {
+    pub baseline_manager: Mutex<BaselineManager>,
+    pub mihomo_manager: Mutex<MihomoManager>,
+    pub proxy_guard: Mutex<ProxyGuard>,
+    pub audit_logger: Mutex<AuditLogger>,
+}
+
+/// Error type returned by all Tauri commands.
+fn command_error(context: &str, e: impl std::fmt::Display) -> String {
+    format!("{context}: {e}")
+}
+
+/// Start the initial network assessment.
+///
+/// # Errors
+///
+/// Returns an error if the initial snapshot cannot be collected.
+pub fn start_initial_assessment(mgr: &BaselineManager) -> Result<AssessmentResponse, String> {
+    let snapshot = mgr
+        .collect_initial_snapshot()
+        .map_err(|e| command_error("Initial assessment failed", e))?;
+    Ok(AssessmentResponse {
+        version: snapshot.version,
+        timestamp: snapshot.timestamp,
+        item_count: snapshot.items.len(),
+    })
+}
+
+/// Get a summary of the current system state grouped by category.
+///
+/// # Errors
+///
+/// Returns an error if adapter collection fails.
+pub fn get_state_summary(mgr: &BaselineManager) -> Result<StateSummaryResponse, String> {
+    let summary = mgr
+        .get_state_summary()
+        .map_err(|e| command_error("State summary failed", e))?;
+    Ok(StateSummaryResponse {
+        total: summary.total,
+        restorable_count: summary.restorable.len(),
+        detectable_count: summary.detectable.len(),
+        excluded_count: summary.excluded.len(),
+    })
+}
+
+/// Re-collect the network state (trigger readjustment).
+///
+/// # Errors
+///
+/// Returns an error if the re-collection fails.
+pub fn trigger_readjustment(mgr: &BaselineManager) -> Result<AssessmentResponse, String> {
+    start_initial_assessment(mgr)
+}
+
+/// Confirm the baseline after user review.
+///
+/// # Errors
+///
+/// Returns an error if no initial snapshot exists or persistence fails.
+pub fn confirm_baseline(mgr: &BaselineManager) -> Result<AssessmentResponse, String> {
+    let baseline = mgr
+        .confirm_baseline()
+        .map_err(|e| command_error("Baseline confirmation failed", e))?;
+    Ok(AssessmentResponse {
+        version: baseline.version,
+        timestamp: baseline.timestamp,
+        item_count: baseline.items.len(),
+    })
+}
+
+/// Get the baseline deviation status.
+///
+/// # Errors
+///
+/// Returns an error if the comparison fails (other than missing baseline).
+pub fn get_baseline_status(mgr: &BaselineManager) -> Result<BaselineStatusResponse, String> {
+    match mgr.compare_with_baseline() {
+        Ok(comparisons) => {
+            let items: Vec<ComparisonItemDto> = comparisons
+                .into_iter()
+                .map(|c| {
+                    let (result, baseline_value, current_value) = match c.result {
+                        ComparisonResult::Match => {
+                            (ComparisonResultDto::Match, None, None)
+                        }
+                        ComparisonResult::Deviated {
+                            baseline_value: bv,
+                            current_value: cv,
+                        } => (
+                            ComparisonResultDto::Deviated,
+                            Some(bv),
+                            Some(cv),
+                        ),
+                        ComparisonResult::MissingInBaseline => {
+                            (ComparisonResultDto::MissingInBaseline, None, None)
+                        }
+                    };
+                    ComparisonItemDto {
+                        state_item_id: c.state_item_id,
+                        result,
+                        baseline_value,
+                        current_value,
+                    }
+                })
+                .collect();
+            Ok(BaselineStatusResponse {
+                has_baseline: true,
+                items,
+            })
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(BaselineStatusResponse {
+            has_baseline: false,
+            items: vec![],
+        }),
+        Err(e) => Err(command_error("Baseline status check failed", e)),
+    }
+}
+
+/// Stop the service and restore network settings to baseline.
+///
+/// # Errors
+///
+/// Returns an error if the recovery state cannot be determined.
+pub fn stop_service(
+    mihomo: &mut MihomoManager,
+    baseline_mgr: &BaselineManager,
+) -> Result<ServiceStoppedPayload, String> {
+    let _ = mihomo.stop();
+    let restore_result = baseline_mgr.restore_to_baseline();
+
+    let recovery_triggered = restore_result.as_ref().is_ok_and(|r| r.succeeded > 0);
+
+    Ok(ServiceStoppedPayload {
+        reason: "User requested".to_string(),
+        recovery_triggered,
+    })
+}
+
+/// Get the current service status (mihomo running + `ProxyGuard` restart count).
+#[must_use]
+pub fn get_service_status(
+    mihomo: &mut MihomoManager,
+    guard: &ProxyGuard,
+) -> ServiceStatusResponse {
+    ServiceStatusResponse {
+        mihomo_running: mihomo.is_running(),
+        proxy_guard_restart_count: guard.restart_count(),
+    }
+}
+
+/// Get the current recovery task progress.
+///
+/// # Errors
+///
+/// Returns an error if the recovery state cannot be loaded.
+pub fn get_recovery_progress(
+    baseline_mgr: &BaselineManager,
+) -> Result<RecoveryProgressResponse, String> {
+    use crate::services::recovery::RecoveryManager;
+
+    let recovery_mgr = RecoveryManager::new(
+        baseline_mgr.audit_dir.join("state"),
+    )
+    .map_err(|e| command_error("Failed to load recovery state", e))?;
+
+    match recovery_mgr.load_task().map_err(|e| command_error("Recovery load failed", e))? {
+        Some(task) => {
+            let completed_count = task.completed_items.len();
+            let pending_count = task.pending_items.len();
+            let total = completed_count + pending_count;
+            let succeeded = task
+                .completed_items
+                .iter()
+                .filter(|i| i.result == Some(crate::models::recovery::ItemResult::Success))
+                .count();
+            let failed = task
+                .completed_items
+                .iter()
+                .filter(|i| i.result == Some(crate::models::recovery::ItemResult::Failure))
+                .count();
+
+            Ok(RecoveryProgressResponse {
+                has_task: true,
+                status: Some(recovery_status_to_string(&task.status)),
+                total_items: total,
+                completed_count,
+                pending_count,
+                succeeded,
+                failed,
+            })
+        }
+        None => Ok(RecoveryProgressResponse {
+            has_task: false,
+            status: None,
+            total_items: 0,
+            completed_count: 0,
+            pending_count: 0,
+            succeeded: 0,
+            failed: 0,
+        }),
+    }
+}
+
+/// Query the audit log with pagination and optional filters.
+///
+/// # Errors
+///
+/// Returns an error if the audit log query fails.
+pub fn get_audit_log(
+    logger: &AuditLogger,
+    params: &AuditLogParams,
+) -> Result<AuditLogResponse, String> {
+    let validated = params.validated();
+    let action = validated
+        .action_type
+        .as_deref()
+        .and_then(parse_audit_action);
+
+    let (total_count, records) = logger
+        .query(
+            validated.offset,
+            validated.limit,
+            action,
+            validated.from,
+            validated.to,
+        )
+        .map_err(|e| command_error("Audit log query failed", e))?;
+
+    let dtos: Vec<AuditRecordDto> = records
+        .into_iter()
+        .map(|r| AuditRecordDto {
+            timestamp: r.timestamp,
+            action: serde_json::to_string(&r.action)
+                .unwrap_or_default()
+                .trim_matches('"')
+                .to_string(),
+            target: r.target,
+            result: serde_json::to_string(&r.result)
+                .unwrap_or_default()
+                .trim_matches('"')
+                .to_string(),
+            reason: r.reason,
+            details: Some(r.details),
+        })
+        .collect();
+
+    Ok(AuditLogResponse {
+        total_count,
+        records: dtos,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Response DTO round-trip tests ──────────────────────────────────────
+
+    #[test]
+    fn assessment_response_roundtrip() {
+        let resp = AssessmentResponse {
+            version: 0,
+            timestamp: "2026-05-19T12:00:00Z".to_string(),
+            item_count: 9,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: AssessmentResponse = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.version, 0);
+        assert_eq!(back.item_count, 9);
+    }
+
+    #[test]
+    fn state_summary_response_roundtrip() {
+        let resp = StateSummaryResponse {
+            total: 10,
+            restorable_count: 4,
+            detectable_count: 5,
+            excluded_count: 1,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: StateSummaryResponse = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.total, 10);
+        assert_eq!(back.restorable_count, 4);
+    }
+
+    #[test]
+    fn comparison_result_dto_roundtrip() {
+        let variants = vec![
+            ComparisonResultDto::Match,
+            ComparisonResultDto::Deviated,
+            ComparisonResultDto::MissingInBaseline,
+        ];
+        for v in &variants {
+            let json = serde_json::to_string(v).expect("serialize");
+            let back: ComparisonResultDto = serde_json::from_str(&json).expect("deserialize");
+            assert_eq!(&back, v);
+        }
+    }
+
+    #[test]
+    fn comparison_result_dto_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&ComparisonResultDto::MissingInBaseline).expect("s"),
+            "\"missing_in_baseline\""
+        );
+    }
+
+    #[test]
+    fn comparison_item_dto_roundtrip() {
+        let item = ComparisonItemDto {
+            state_item_id: "win-system-proxy".to_string(),
+            result: ComparisonResultDto::Deviated,
+            baseline_value: Some(serde_json::json!({"ProxyEnable": 0})),
+            current_value: Some(serde_json::json!({"ProxyEnable": 1})),
+        };
+        let json = serde_json::to_string(&item).expect("serialize");
+        let back: ComparisonItemDto = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.state_item_id, "win-system-proxy");
+        assert_eq!(back.result, ComparisonResultDto::Deviated);
+        assert!(back.baseline_value.is_some());
+    }
+
+    #[test]
+    fn comparison_item_dto_skips_none_values() {
+        let item = ComparisonItemDto {
+            state_item_id: "a".to_string(),
+            result: ComparisonResultDto::Match,
+            baseline_value: None,
+            current_value: None,
+        };
+        let json = serde_json::to_string(&item).expect("serialize");
+        assert!(!json.contains("baseline_value"));
+        assert!(!json.contains("current_value"));
+    }
+
+    #[test]
+    fn baseline_status_response_roundtrip() {
+        let resp = BaselineStatusResponse {
+            has_baseline: true,
+            items: vec![ComparisonItemDto {
+                state_item_id: "a".to_string(),
+                result: ComparisonResultDto::Match,
+                baseline_value: None,
+                current_value: None,
+            }],
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: BaselineStatusResponse = serde_json::from_str(&json).expect("deserialize");
+        assert!(back.has_baseline);
+        assert_eq!(back.items.len(), 1);
+    }
+
+    #[test]
+    fn service_status_response_roundtrip() {
+        let resp = ServiceStatusResponse {
+            mihomo_running: true,
+            proxy_guard_restart_count: 1,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: ServiceStatusResponse = serde_json::from_str(&json).expect("deserialize");
+        assert!(back.mihomo_running);
+        assert_eq!(back.proxy_guard_restart_count, 1);
+    }
+
+    #[test]
+    fn recovery_progress_response_roundtrip() {
+        let resp = RecoveryProgressResponse {
+            has_task: true,
+            status: Some("in_progress".to_string()),
+            total_items: 4,
+            completed_count: 2,
+            pending_count: 2,
+            succeeded: 2,
+            failed: 0,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: RecoveryProgressResponse = serde_json::from_str(&json).expect("deserialize");
+        assert!(back.has_task);
+        assert_eq!(back.status, Some("in_progress".to_string()));
+        assert_eq!(back.total_items, 4);
+    }
+
+    #[test]
+    fn recovery_progress_response_no_task() {
+        let resp = RecoveryProgressResponse {
+            has_task: false,
+            status: None,
+            total_items: 0,
+            completed_count: 0,
+            pending_count: 0,
+            succeeded: 0,
+            failed: 0,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: RecoveryProgressResponse = serde_json::from_str(&json).expect("deserialize");
+        assert!(!back.has_task);
+        assert!(back.status.is_none());
+    }
+
+    #[test]
+    fn audit_log_response_roundtrip() {
+        let resp = AuditLogResponse {
+            total_count: 100,
+            records: vec![AuditRecordDto {
+                timestamp: "2026-05-19T12:00:00Z".to_string(),
+                action: "baseline_collect".to_string(),
+                target: "all".to_string(),
+                result: "success".to_string(),
+                reason: None,
+                details: Some(serde_json::json!({"item_count": 9})),
+            }],
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: AuditLogResponse = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.total_count, 100);
+        assert_eq!(back.records.len(), 1);
+        assert_eq!(back.records[0].action, "baseline_collect");
+    }
+
+    #[test]
+    fn audit_record_dto_skips_none_fields() {
+        let record = AuditRecordDto {
+            timestamp: "2026-05-19T12:00:00Z".to_string(),
+            action: "baseline_collect".to_string(),
+            target: "all".to_string(),
+            result: "success".to_string(),
+            reason: None,
+            details: None,
+        };
+        let json = serde_json::to_string(&record).expect("serialize");
+        assert!(!json.contains("reason"));
+        assert!(!json.contains("details"));
+    }
+
+    // ── Pagination validation tests ────────────────────────────────────────
+
+    #[test]
+    fn audit_log_params_default() {
+        let params = AuditLogParams::default();
+        assert_eq!(params.offset, 0);
+        assert_eq!(params.limit, 50);
+        assert!(params.action_type.is_none());
+        assert!(params.from.is_none());
+        assert!(params.to.is_none());
+    }
+
+    #[test]
+    fn audit_log_params_validated_clamps_limit_to_max() {
+        let params = AuditLogParams {
+            limit: 500,
+            ..Default::default()
+        };
+        let validated = params.validated();
+        assert_eq!(validated.limit, MAX_AUDIT_LOG_LIMIT);
+    }
+
+    #[test]
+    fn audit_log_params_validated_clamps_zero_limit() {
+        let params = AuditLogParams {
+            limit: 0,
+            ..Default::default()
+        };
+        let validated = params.validated();
+        assert_eq!(validated.limit, 1);
+    }
+
+    #[test]
+    fn audit_log_params_validated_preserves_valid_limit() {
+        let params = AuditLogParams {
+            limit: 100,
+            ..Default::default()
+        };
+        let validated = params.validated();
+        assert_eq!(validated.limit, 100);
+    }
+
+    #[test]
+    fn audit_log_params_preserves_filters() {
+        let params = AuditLogParams {
+            offset: 10,
+            limit: 25,
+            action_type: Some("state_restore".to_string()),
+            from: Some("2026-05-19".to_string()),
+            to: Some("2026-05-20".to_string()),
+        };
+        let validated = params.validated();
+        assert_eq!(validated.offset, 10);
+        assert_eq!(validated.limit, 25);
+        assert_eq!(validated.action_type, Some("state_restore".to_string()));
+        assert_eq!(validated.from, Some("2026-05-19".to_string()));
+        assert_eq!(validated.to, Some("2026-05-20".to_string()));
+    }
+
+    #[test]
+    fn audit_log_params_deserialization_with_defaults() {
+        let json = r"{}";
+        let params: AuditLogParams = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(params.offset, 0);
+        assert_eq!(params.limit, 50);
+    }
+
+    // ── Event payload round-trip tests ─────────────────────────────────────
+
+    #[test]
+    fn recovery_started_payload_roundtrip() {
+        let payload = RecoveryStartedPayload {
+            task_id: "task-123".to_string(),
+            total_items: 4,
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: RecoveryStartedPayload = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.task_id, "task-123");
+        assert_eq!(back.total_items, 4);
+    }
+
+    #[test]
+    fn recovery_item_completed_payload_roundtrip() {
+        let payload = RecoveryItemCompletedPayload {
+            state_item_id: "win-system-proxy".to_string(),
+            success: true,
+            failure_reason: None,
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: RecoveryItemCompletedPayload = serde_json::from_str(&json).expect("deserialize");
+        assert!(back.success);
+        assert!(!json.contains("failure_reason"));
+    }
+
+    #[test]
+    fn recovery_item_completed_payload_with_failure() {
+        let payload = RecoveryItemCompletedPayload {
+            state_item_id: "win-hosts".to_string(),
+            success: false,
+            failure_reason: Some("Permission denied".to_string()),
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: RecoveryItemCompletedPayload = serde_json::from_str(&json).expect("deserialize");
+        assert!(!back.success);
+        assert_eq!(back.failure_reason, Some("Permission denied".to_string()));
+    }
+
+    #[test]
+    fn recovery_completed_payload_roundtrip() {
+        let payload = RecoveryCompletedPayload {
+            task_id: "task-123".to_string(),
+            succeeded: 4,
+            failed: 0,
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: RecoveryCompletedPayload = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.succeeded, 4);
+        assert_eq!(back.failed, 0);
+    }
+
+    #[test]
+    fn recovery_failed_payload_roundtrip() {
+        let payload = RecoveryFailedPayload {
+            task_id: "task-123".to_string(),
+            failed_items: vec!["win-hosts".to_string(), "win-system-proxy".to_string()],
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: RecoveryFailedPayload = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.failed_items.len(), 2);
+    }
+
+    #[test]
+    fn baseline_confirmed_payload_roundtrip() {
+        let payload = BaselineConfirmedPayload {
+            version: 1,
+            item_count: 9,
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: BaselineConfirmedPayload = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.version, 1);
+        assert_eq!(back.item_count, 9);
+    }
+
+    #[test]
+    fn baseline_deviation_payload_roundtrip() {
+        let payload = BaselineDeviationPayload {
+            deviated_items: vec!["win-system-proxy".to_string()],
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: BaselineDeviationPayload = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.deviated_items.len(), 1);
+    }
+
+    #[test]
+    fn service_stopped_payload_roundtrip() {
+        let payload = ServiceStoppedPayload {
+            reason: "User requested".to_string(),
+            recovery_triggered: true,
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: ServiceStoppedPayload = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.reason, "User requested");
+        assert!(back.recovery_triggered);
+    }
+
+    #[test]
+    fn service_started_payload_roundtrip() {
+        let payload = ServiceStartedPayload {
+            mihomo_running: true,
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: ServiceStartedPayload = serde_json::from_str(&json).expect("deserialize");
+        assert!(back.mihomo_running);
+    }
+
+    #[test]
+    fn auto_recovery_triggered_payload_roundtrip() {
+        let payload = AutoRecoveryTriggeredPayload {
+            restart_attempts: 3,
+            max_attempts: 3,
+        };
+        let json = serde_json::to_string(&payload).expect("serialize");
+        let back: AutoRecoveryTriggeredPayload = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.restart_attempts, 3);
+        assert_eq!(back.max_attempts, 3);
+    }
+
+    // ── Helper function tests ──────────────────────────────────────────────
+
+    #[test]
+    fn recovery_status_to_string_all_variants() {
+        assert_eq!(
+            recovery_status_to_string(&RecoveryStatus::Pending),
+            "pending"
+        );
+        assert_eq!(
+            recovery_status_to_string(&RecoveryStatus::InProgress),
+            "in_progress"
+        );
+        assert_eq!(
+            recovery_status_to_string(&RecoveryStatus::Completed),
+            "completed"
+        );
+        assert_eq!(
+            recovery_status_to_string(&RecoveryStatus::Failed),
+            "failed"
+        );
+        assert_eq!(
+            recovery_status_to_string(&RecoveryStatus::UserAcknowledged),
+            "user_acknowledged"
+        );
+    }
+
+    #[test]
+    fn parse_audit_action_all_valid() {
+        assert_eq!(
+            parse_audit_action("baseline_collect"),
+            Some(AuditAction::BaselineCollect)
+        );
+        assert_eq!(
+            parse_audit_action("baseline_confirm"),
+            Some(AuditAction::BaselineConfirm)
+        );
+        assert_eq!(
+            parse_audit_action("state_restore"),
+            Some(AuditAction::StateRestore)
+        );
+        assert_eq!(
+            parse_audit_action("proxy_guard_restart"),
+            Some(AuditAction::ProxyGuardRestart)
+        );
+        assert_eq!(
+            parse_audit_action("proxy_guard_recovery"),
+            Some(AuditAction::ProxyGuardRecovery)
+        );
+        assert_eq!(
+            parse_audit_action("rule_apply"),
+            Some(AuditAction::RuleApply)
+        );
+        assert_eq!(
+            parse_audit_action("config_change"),
+            Some(AuditAction::ConfigChange)
+        );
+    }
+
+    #[test]
+    fn parse_audit_action_unknown_returns_none() {
+        assert_eq!(parse_audit_action("nonexistent"), None);
+        assert_eq!(parse_audit_action(""), None);
+    }
+
+    #[test]
+    fn max_audit_log_limit_is_200() {
+        assert_eq!(MAX_AUDIT_LOG_LIMIT, 200);
+    }
+
+    // ── Command function integration tests (with mock managers) ────────────
+
+    use crate::adapters::{PlatformAdapter, StateItemDefinition};
+    use crate::managers::baseline_manager::BaselineManager;
+    use crate::managers::mihomo_manager::MihomoManager;
+    use crate::models::baseline::{Platform, StateItem, StateItemCategory};
+    use crate::models::config::{MihomoConfig, ProxyGuardConfig};
+    use crate::services::proxy_guard::ProxyGuard;
+
+    struct CmdMockAdapter {
+        items: Vec<StateItem>,
+    }
+
+    impl CmdMockAdapter {
+        fn with_items(items: Vec<StateItem>) -> Self {
+            Self { items }
+        }
+    }
+
+    impl PlatformAdapter for CmdMockAdapter {
+        fn platform(&self) -> Platform {
+            Platform::Windows
+        }
+        fn state_item_definitions(&self) -> Vec<StateItemDefinition> {
+            self.items
+                .iter()
+                .map(|i| StateItemDefinition {
+                    id: i.id.clone(),
+                    category: i.category.clone(),
+                    description: String::new(),
+                })
+                .collect()
+        }
+        fn read_state_items(&self) -> Vec<StateItem> {
+            self.items.clone()
+        }
+        fn write_state(&self, _item: &StateItem) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    fn cmd_item(id: &str, category: StateItemCategory) -> StateItem {
+        StateItem {
+            id: id.to_string(),
+            platform: Platform::Windows,
+            category,
+            value: serde_json::json!("value"),
+            collected_at: "2026-05-19T12:00:00Z".to_string(),
+            classification_reason: "test".to_string(),
+        }
+    }
+
+    fn test_mihomo_config(dir: &std::path::Path) -> MihomoConfig {
+        MihomoConfig {
+            binary_path: dir.join("fake-mihomo"),
+            config_dir: dir.join("mihomo"),
+            api_address: "127.0.0.1:19999".to_string(),
+            api_secret: "test".to_string(),
+            mixed_port: 19999,
+            log_level: "warning".to_string(),
+        }
+    }
+
+    fn setup_baseline(dir: &std::path::Path) -> BaselineManager {
+        let items = vec![
+            cmd_item("a", StateItemCategory::Restorable),
+            cmd_item("b", StateItemCategory::Restorable),
+            cmd_item("c", StateItemCategory::Detectable),
+        ];
+        let adapter = CmdMockAdapter::with_items(items);
+        let storage = crate::storage::baseline_storage::BaselineStorage::new(
+            dir.join("baseline"),
+        );
+        BaselineManager::new(
+            vec![Box::new(adapter)],
+            storage,
+            dir.to_path_buf(),
+        )
+    }
+
+    #[test]
+    fn cmd_start_initial_assessment() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        let resp = start_initial_assessment(&mgr).expect("assess");
+        assert_eq!(resp.version, 0);
+        assert_eq!(resp.item_count, 3);
+    }
+
+    #[test]
+    fn cmd_get_state_summary() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        let resp = get_state_summary(&mgr).expect("summary");
+        assert_eq!(resp.total, 3);
+        assert_eq!(resp.restorable_count, 2);
+        assert_eq!(resp.detectable_count, 1);
+        assert_eq!(resp.excluded_count, 0);
+    }
+
+    #[test]
+    fn cmd_trigger_readjustment() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        let resp = trigger_readjustment(&mgr).expect("readjust");
+        assert_eq!(resp.version, 0);
+        assert_eq!(resp.item_count, 3);
+    }
+
+    #[test]
+    fn cmd_confirm_baseline() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        start_initial_assessment(&mgr).expect("assess");
+        let resp = confirm_baseline(&mgr).expect("confirm");
+        assert_eq!(resp.version, 1);
+        assert_eq!(resp.item_count, 3);
+    }
+
+    #[test]
+    fn cmd_get_baseline_status_no_baseline() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        let resp = get_baseline_status(&mgr).expect("status");
+        assert!(!resp.has_baseline);
+        assert!(resp.items.is_empty());
+    }
+
+    #[test]
+    fn cmd_get_baseline_status_with_baseline() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        start_initial_assessment(&mgr).expect("assess");
+        confirm_baseline(&mgr).expect("confirm");
+        let resp = get_baseline_status(&mgr).expect("status");
+        assert!(resp.has_baseline);
+        assert_eq!(resp.items.len(), 3);
+        assert_eq!(resp.items[0].result, ComparisonResultDto::Match);
+    }
+
+    #[test]
+    fn cmd_get_service_status() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let config = test_mihomo_config(dir.path());
+        let mut mihomo = MihomoManager::new(config);
+        let guard = ProxyGuard::new(ProxyGuardConfig {
+            check_interval_secs: 3,
+            max_restart_attempts: 3,
+            restart_cooldown_secs: 1,
+        });
+        let resp = get_service_status(&mut mihomo, &guard);
+        assert!(!resp.mihomo_running);
+        assert_eq!(resp.proxy_guard_restart_count, 0);
+    }
+
+    #[test]
+    fn cmd_get_recovery_progress_no_task() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        let resp = get_recovery_progress(&mgr).expect("progress");
+        assert!(!resp.has_task);
+        assert!(resp.status.is_none());
+    }
+
+    #[test]
+    fn cmd_get_recovery_progress_with_task() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        start_initial_assessment(&mgr).expect("assess");
+        confirm_baseline(&mgr).expect("confirm");
+
+        // Trigger a restore to create a recovery task.
+        mgr.restore_to_baseline().expect("restore");
+
+        let resp = get_recovery_progress(&mgr).expect("progress");
+        // After restore completes, the task should be in terminal state
+        // and cleaned up, so no active task.
+        assert!(!resp.has_task);
+    }
+
+    #[test]
+    fn cmd_get_audit_log() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let logger = crate::services::audit_logger::AuditLogger::new(
+            dir.path().join("audit"),
+        )
+        .expect("logger");
+        logger
+            .log_success(
+                AuditAction::BaselineCollect,
+                "all",
+                serde_json::json!({"count": 3}),
+            )
+            .expect("log");
+
+        let params = AuditLogParams::default();
+        let resp = get_audit_log(&logger, &params).expect("audit");
+        assert_eq!(resp.total_count, 1);
+        assert_eq!(resp.records[0].action, "baseline_collect");
+        assert_eq!(resp.records[0].result, "success");
+    }
+
+    #[test]
+    fn cmd_get_audit_log_with_pagination() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let logger = crate::services::audit_logger::AuditLogger::new(
+            dir.path().join("audit"),
+        )
+        .expect("logger");
+
+        for i in 0..5 {
+            logger
+                .log_success(
+                    AuditAction::ConfigChange,
+                    &format!("item-{i}"),
+                    serde_json::json!({}),
+                )
+                .expect("log");
+        }
+
+        let params = AuditLogParams {
+            offset: 2,
+            limit: 2,
+            ..Default::default()
+        };
+        let resp = get_audit_log(&logger, &params).expect("audit");
+        assert_eq!(resp.total_count, 5);
+        assert_eq!(resp.records.len(), 2);
+    }
+
+    #[test]
+    fn cmd_get_audit_log_with_action_filter() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let logger = crate::services::audit_logger::AuditLogger::new(
+            dir.path().join("audit"),
+        )
+        .expect("logger");
+
+        logger
+            .log_success(AuditAction::BaselineCollect, "a", serde_json::json!({}))
+            .expect("log");
+        logger
+            .log_success(AuditAction::StateRestore, "b", serde_json::json!({}))
+            .expect("log");
+
+        let params = AuditLogParams {
+            action_type: Some("state_restore".to_string()),
+            ..Default::default()
+        };
+        let resp = get_audit_log(&logger, &params).expect("audit");
+        assert_eq!(resp.total_count, 1);
+        assert_eq!(resp.records[0].target, "b");
+    }
+
+    #[test]
+    fn cmd_stop_service() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let mgr = setup_baseline(dir.path());
+        let config = test_mihomo_config(dir.path());
+        let mut mihomo = MihomoManager::new(config);
+
+        start_initial_assessment(&mgr).expect("assess");
+        confirm_baseline(&mgr).expect("confirm");
+
+        let payload = stop_service(&mut mihomo, &mgr).expect("stop");
+        assert!(payload.recovery_triggered);
+        assert_eq!(payload.reason, "User requested");
+    }
+}
