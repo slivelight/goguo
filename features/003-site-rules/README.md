@@ -3,7 +3,7 @@
 ## 状态
 
 - **Feature ID**: 003
-- **状态**: 任务计划中（`hf-tasks`）
+- **状态**: hf-test-driven-dev（实现阶段）
 - **关联 OPP**: OPP-001
 - **创建日期**: 2026-05-11
 
@@ -18,7 +18,8 @@
 | hf-design | 2026-05-14~15 | `design.md`（7 条标注修订 + 跨文档评审） |
 | design-review | 2026-05-15 | `reviews/design-review-2026-05-15.md` |
 | design-approval | 2026-05-15 | `approvals/design-approval-2026-05-15.md` |
-| hf-tasks | 进行中 | `tasks.md` |
+| hf-tasks | 2026-05-18 | `tasks.md` |
+| hf-test-driven-dev | 进行中 | — |
 
 ## 相关 ADR
 
@@ -36,7 +37,8 @@
 
 ## 当前 active task
 
-- 执行 `tasks.md` 任务计划（等待 F001 M1~M6 完成）
+- T1.1（SiteDefinition 数据模型 + Store）
+- 并行候选：T3.1, T4.1（F001 前置已满足）
 
 ## 上游输入
 
