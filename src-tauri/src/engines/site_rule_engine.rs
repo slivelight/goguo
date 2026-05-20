@@ -1,14 +1,12 @@
 use crate::models::probe::ProbeResult;
-use crate::models::site::{DomainCategory, HealthCheckConfig, SiteDefinition};
+use crate::models::site::SiteDefinition;
 use crate::services::probe_service::{ProbeClient, ProbeService};
-use crate::services::rule_generator::{GeneratedRules, Rule, RuleGenerator, RuleStorage};
+use crate::services::rule_generator::{GeneratedRules, RuleGenerator, RuleStorage};
 use crate::services::rule_verifier::{ProbeFailure, RuleVerifier, VerificationConfig, VerificationResult};
 use crate::services::site_definition_store::SiteDefinitionStore;
-use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FiveElementPrompt {
     pub reason: String,
     pub attempted_actions: Vec<String>,
@@ -79,7 +77,7 @@ pub enum RemoveSiteResult {
     NotFound,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SiteReachability {
     pub site_id: String,
     pub reachable: bool,
@@ -87,6 +85,7 @@ pub struct SiteReachability {
     pub last_probe: Option<ProbeResult>,
 }
 
+#[derive(Clone)]
 pub struct SiteRuleEngine {
     site_store: SiteDefinitionStore,
     rule_generator: RuleGenerator,
@@ -99,7 +98,7 @@ pub struct SiteRuleEngine {
 impl SiteRuleEngine {
     #[must_use]
     pub fn new(
-        data_dir: PathBuf,
+        data_dir: &std::path::Path,
         probe_client: Arc<dyn ProbeClient>,
     ) -> Self {
         let site_store = SiteDefinitionStore::new(data_dir.join("config").join("site-definitions"));
@@ -139,7 +138,7 @@ impl SiteRuleEngine {
         }
         
         let generated = self.generate_rules();
-        let rules = generated.rules.clone();
+        let rules = generated.rules;
         
         self.probe_service.register_site(site_id, &format!("https://{site_id}.com"));
         
@@ -151,10 +150,12 @@ impl SiteRuleEngine {
                 rules_generated: rules.len(),
                 verification_passed: true,
             },
-            VerificationResult::RolledBack(failures) => AddSiteResult::VerificationFailed {
-                site,
-                prompt: FiveElementPrompt::verification_failed_prompt(&failures),
-            },
+            VerificationResult::RolledBack(failures) | VerificationResult::ProbeFailed(failures) => {
+                AddSiteResult::VerificationFailed {
+                    site,
+                    prompt: FiveElementPrompt::verification_failed_prompt(&failures),
+                }
+            }
             VerificationResult::StaticCheckFailed(reason) => AddSiteResult::VerificationFailed {
                 site,
                 prompt: FiveElementPrompt::new(
@@ -164,10 +165,6 @@ impl SiteRuleEngine {
                     "Check rule generator output".to_string(),
                     true,
                 ),
-            },
-            VerificationResult::ProbeFailed(failures) => AddSiteResult::VerificationFailed {
-                site,
-                prompt: FiveElementPrompt::verification_failed_prompt(&failures),
             },
         }
     }
@@ -189,7 +186,7 @@ impl SiteRuleEngine {
         }
     }
 
-    fn generate_rules(&mut self) -> GeneratedRules {
+    fn generate_rules(&self) -> GeneratedRules {
         let sites: Vec<SiteDefinition> = self
             .active_sites
             .iter()
@@ -284,7 +281,7 @@ mod tests {
 
     fn create_test_engine(dir: &std::path::Path) -> SiteRuleEngine {
         let probe_client = Arc::new(MockProbeClient::new());
-        SiteRuleEngine::new(dir.to_path_buf(), probe_client)
+        SiteRuleEngine::new(dir, probe_client)
     }
 
     #[test]

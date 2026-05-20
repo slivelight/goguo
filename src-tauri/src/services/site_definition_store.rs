@@ -4,6 +4,7 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct SiteDefinitionStore {
     built_in: HashMap<String, SiteDefinition>,
     custom_dir: PathBuf,

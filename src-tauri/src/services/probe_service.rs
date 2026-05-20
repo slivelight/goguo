@@ -88,6 +88,7 @@ impl ProbeClient for MockProbeClient {
     }
 }
 
+#[derive(Clone)]
 pub struct ProbeService {
     config: ProbeConfig,
     history: ProbeHistory,

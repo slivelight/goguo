@@ -1,4 +1,4 @@
-use crate::models::node::{NodeHealthResult, NodeStatus, ProxyNode};
+use crate::models::node::{NodeHealthResult, ProxyNode};
 use std::time::Duration;
 
 pub trait NodeHealthChecker: Send + Sync {
@@ -39,20 +39,23 @@ impl NodeHealthChecker for MockNodeHealthChecker {
     }
 }
 
+#[derive(Clone)]
 pub struct NodePoolConfig {
     pub failure_threshold: u32,
     pub check_interval: Duration,
 }
 
 impl Default for NodePoolConfig {
+    #[allow(clippy::duration_subsec)]
     fn default() -> Self {
         Self {
             failure_threshold: 3,
-            check_interval: Duration::from_secs(60),
+            check_interval: Duration::from_mins(1),
         }
     }
 }
 
+#[derive(Clone)]
 pub struct NodePool {
     nodes: Vec<ProxyNode>,
     current_index: usize,
@@ -167,6 +170,7 @@ impl NodePool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::node::NodeStatus;
     use crate::models::node::ProxyProtocol;
 
     #[test]
@@ -346,11 +350,12 @@ mod tests {
         assert_eq!(pool.available_count(), 2);
     }
 
-    #[test]
-    fn node_pool_config_default() {
+#[test]
+    #[allow(clippy::duration_subsec)]
+    fn node_pool_config_default_values() {
         let config = NodePoolConfig::default();
         assert_eq!(config.failure_threshold, 3);
-        assert_eq!(config.check_interval, Duration::from_secs(60));
+        assert_eq!(config.check_interval, Duration::from_mins(1));
     }
 
     #[test]

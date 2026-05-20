@@ -7,6 +7,7 @@ use std::path::PathBuf;
 
 const SUPPORTED_PROTOCOLS: [&str; 5] = ["vless", "vmess", "trojan", "shadowsocks", "hysteria2"];
 
+#[derive(Clone)]
 pub struct SubscriptionParser {
     sources_file: PathBuf,
 }
@@ -17,6 +18,7 @@ impl SubscriptionParser {
         Self { sources_file }
     }
 
+    #[must_use] 
     pub fn parse_raw_content(content: &str) -> ParseResult {
         let decoded = Self::decode_base64(content);
         Self::parse_nodes_from_lines(&decoded)
@@ -71,11 +73,10 @@ impl SubscriptionParser {
     fn extract_name(url: &str, protocol: &str) -> Option<String> {
         let after_scheme = url.strip_prefix(&format!("{protocol}://"))?;
         
-        let hash_part = after_scheme.split('#').last()?;
+        let hash_part = after_scheme.split('#').next_back()?;
         if !hash_part.is_empty() {
             return Some(
                 urlencoding_decode(hash_part)
-                    .unwrap_or_else(|| hash_part.to_string())
             );
         }
         
@@ -170,7 +171,7 @@ impl SubscriptionParser {
     }
 }
 
-fn urlencoding_decode(s: &str) -> Option<String> {
+fn urlencoding_decode(s: &str) -> String {
     let mut result = String::new();
     let chars = s.chars().collect::<Vec<_>>();
     let mut i = 0;
@@ -188,7 +189,7 @@ fn urlencoding_decode(s: &str) -> Option<String> {
         i += 1;
     }
     
-    Some(result)
+    result
 }
 
 impl Default for SubscriptionParser {
@@ -343,7 +344,7 @@ mod tests {
         let parser = SubscriptionParser::new(dir.path().join("sources.json"));
         
         let source = SubscriptionSource::new("https://example.com/sub".to_string());
-        parser.save_sources(&[source.clone()]).expect("save");
+        parser.save_sources(std::slice::from_ref(&source)).expect("save");
         
         let loaded = parser.load_sources().expect("load");
         assert_eq!(loaded.len(), 1);
@@ -411,6 +412,6 @@ mod tests {
     fn urlencoding_decode_simple() {
         let encoded = "Hello%20World";
         let decoded = urlencoding_decode(encoded);
-        assert_eq!(decoded, Some("Hello World".to_string()));
+        assert_eq!(decoded, "Hello World".to_string());
     }
 }

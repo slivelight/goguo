@@ -54,6 +54,7 @@ pub struct GeneratedRules {
     pub site_counts: HashMap<String, usize>,
 }
 
+#[derive(Clone)]
 pub struct RuleGenerator {
     user_overrides: Vec<Rule>,
 }

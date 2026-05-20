@@ -1,4 +1,4 @@
-use crate::models::probe::{ProbeMethod, ProbeResult};
+use crate::models::probe::ProbeResult;
 use crate::services::probe_service::{ProbeClient, ProbeService};
 use crate::services::rule_generator::{Rule, RuleGenerator, RuleStorage};
 
@@ -35,6 +35,7 @@ impl ProbeFailure {
     }
 }
 
+#[derive(Clone)]
 pub struct VerificationConfig {
     pub reference_sites: Vec<String>,
 }
@@ -50,6 +51,7 @@ impl Default for VerificationConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct RuleVerifier {
     probe_service: ProbeService,
     rule_storage: RuleStorage,
@@ -85,14 +87,14 @@ impl RuleVerifier {
         }
 
         let pre_results = self.probe_reference_sites();
-        let _pre_failures = self.collect_probe_failures(&pre_results);
+        let _pre_failures = Self::collect_probe_failures(&pre_results);
 
         self.rule_storage
             .save_current(rules)
             .expect("save current rules");
 
         let post_results = self.probe_reference_sites();
-        let regressions = self.find_regressions(&pre_results, &post_results);
+        let regressions = Self::find_regressions(&pre_results, &post_results);
 
         if regressions.is_empty() {
             return VerificationResult::Passed;
@@ -119,7 +121,7 @@ impl RuleVerifier {
         self.probe_service.probe_all()
     }
 
-    fn collect_probe_failures(&self, results: &[ProbeResult]) -> Vec<ProbeFailure> {
+    fn collect_probe_failures(results: &[ProbeResult]) -> Vec<ProbeFailure> {
         results
             .iter()
             .filter(|r| !r.reachable)
@@ -127,7 +129,7 @@ impl RuleVerifier {
             .collect()
     }
 
-    fn find_regressions(&self, pre: &[ProbeResult], post: &[ProbeResult]) -> Vec<ProbeFailure> {
+    fn find_regressions(pre: &[ProbeResult], post: &[ProbeResult]) -> Vec<ProbeFailure> {
         let mut failures = vec![];
         
         for pre_result in pre {
@@ -162,15 +164,16 @@ fn extract_site_id(url: &str) -> String {
     url.strip_prefix("https://")
         .or_else(|| url.strip_prefix("http://"))
         .unwrap_or(url)
-        .replace('/', "_")
-        .replace('.', "_")
+        .chars()
+        .map(|c| if c == '/' || c == '.' { '_' } else { c })
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::probe::ProbeMethod;
     use crate::services::probe_service::MockProbeClient;
-    use std::path::PathBuf;
     use tempfile::tempdir;
 
     fn create_test_verifier(dir: &std::path::Path) -> RuleVerifier {
@@ -195,7 +198,7 @@ mod tests {
         let not_regression = ProbeFailure::new("test".to_string(), false, false, "timeout".to_string());
         assert!(!not_regression.is_regression());
         
-        let still_ok = ProbeFailure::new("test".to_string(), true, true, "".to_string());
+        let still_ok = ProbeFailure::new("test".to_string(), true, true, String::new());
         assert!(!still_ok.is_regression());
     }
 
@@ -276,7 +279,7 @@ mod tests {
     #[test]
     fn find_regressions_empty_if_all_post_reachable() {
         let dir = tempdir().expect("tempdir");
-        let verifier = create_test_verifier(dir.path());
+        let _verifier = create_test_verifier(dir.path());
         
         let pre = vec![
             ProbeResult::reachable("a".to_string(), ProbeMethod::HttpHead, 100),
@@ -287,14 +290,14 @@ mod tests {
             ProbeResult::reachable("b".to_string(), ProbeMethod::HttpHead, 100),
         ];
         
-        let regressions = verifier.find_regressions(&pre, &post);
+        let regressions = RuleVerifier::find_regressions(&pre, &post);
         assert!(regressions.is_empty());
     }
 
     #[test]
     fn find_regressions_detects_regression() {
         let dir = tempdir().expect("tempdir");
-        let verifier = create_test_verifier(dir.path());
+        let _verifier = create_test_verifier(dir.path());
         
         let pre = vec![
             ProbeResult::reachable("a".to_string(), ProbeMethod::HttpHead, 100),
@@ -305,7 +308,7 @@ mod tests {
             ProbeResult::unreachable("b".to_string(), ProbeMethod::HttpGet, "timeout".to_string()),
         ];
         
-        let regressions = verifier.find_regressions(&pre, &post);
+        let regressions = RuleVerifier::find_regressions(&pre, &post);
         assert_eq!(regressions.len(), 1);
         assert_eq!(regressions[0].site, "b");
         assert!(regressions[0].is_regression());
@@ -314,7 +317,7 @@ mod tests {
     #[test]
     fn find_regressions_ignores_pre_unreachable() {
         let dir = tempdir().expect("tempdir");
-        let verifier = create_test_verifier(dir.path());
+        let _verifier = create_test_verifier(dir.path());
         
         let pre = vec![
             ProbeResult::unreachable("a".to_string(), ProbeMethod::HttpGet, "pre timeout".to_string()),
@@ -325,14 +328,14 @@ mod tests {
             ProbeResult::reachable("b".to_string(), ProbeMethod::HttpHead, 100),
         ];
         
-        let regressions = verifier.find_regressions(&pre, &post);
+        let regressions = RuleVerifier::find_regressions(&pre, &post);
         assert!(regressions.is_empty());
     }
 
     #[test]
     fn find_regressions_ignores_both_unreachable() {
         let dir = tempdir().expect("tempdir");
-        let verifier = create_test_verifier(dir.path());
+        let _verifier = create_test_verifier(dir.path());
         
         let pre = vec![
             ProbeResult::unreachable("a".to_string(), ProbeMethod::HttpGet, "pre".to_string()),
@@ -341,14 +344,14 @@ mod tests {
             ProbeResult::unreachable("a".to_string(), ProbeMethod::HttpGet, "post".to_string()),
         ];
         
-        let regressions = verifier.find_regressions(&pre, &post);
+        let regressions = RuleVerifier::find_regressions(&pre, &post);
         assert!(regressions.is_empty());
     }
 
     #[test]
     fn find_regressions_partial_regression() {
         let dir = tempdir().expect("tempdir");
-        let verifier = create_test_verifier(dir.path());
+        let _verifier = create_test_verifier(dir.path());
         
         let pre = vec![
             ProbeResult::reachable("a".to_string(), ProbeMethod::HttpHead, 100),
@@ -361,7 +364,7 @@ mod tests {
             ProbeResult::reachable("c".to_string(), ProbeMethod::HttpHead, 100),
         ];
         
-        let regressions = verifier.find_regressions(&pre, &post);
+        let regressions = RuleVerifier::find_regressions(&pre, &post);
         assert_eq!(regressions.len(), 1);
         assert_eq!(regressions[0].site, "b");
     }
