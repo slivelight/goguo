@@ -110,6 +110,33 @@ const fn default_limit() -> usize {
 /// Maximum allowed value for `limit` in `AuditLogParams`.
 pub const MAX_AUDIT_LOG_LIMIT: usize = 200;
 
+// ── Deployment DTOs ─────────────────────────────────────────────────────────
+
+/// Response for deployment mode commands.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeploymentModeResponse {
+    pub mode: String,
+    pub detected: String,
+    pub is_auto: bool,
+}
+
+/// Response for WSL status queries.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WslStatusResponse {
+    pub is_wsl: bool,
+    pub distro_name: Option<String>,
+    pub distro_version: Option<String>,
+    pub network_mode: String,
+    pub reachable: bool,
+}
+
+/// Response for network mode queries.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkModeResponse {
+    pub mode: String,
+    pub proxy_strategy: String,
+}
+
 impl AuditLogParams {
     /// Validate and clamp the pagination parameters.
     ///
@@ -234,6 +261,62 @@ pub fn parse_audit_action(action: &str) -> Option<AuditAction> {
     }
 }
 
+// ── Deployment Conversion Helpers ──────────────────────────────────────────
+
+use crate::managers::deployment_manager::DeploymentManager;
+use crate::models::config::DeploymentMode;
+
+#[cfg(target_os = "linux")]
+use crate::services::wsl_detector::WslNetworkMode;
+
+/// Convert a `DeploymentMode` to its `snake_case` string representation.
+#[must_use]
+pub fn deployment_mode_to_string(mode: &DeploymentMode) -> String {
+    match mode {
+        DeploymentMode::WindowsOnly => "windows_only".to_string(),
+        DeploymentMode::WslOnly => "wsl_only".to_string(),
+        DeploymentMode::LinuxOnly => "linux_only".to_string(),
+        DeploymentMode::Coordinated => "coordinated".to_string(),
+    }
+}
+
+/// Parse a `snake_case` string into a `DeploymentMode`.
+///
+/// # Errors
+///
+/// Returns an error if the string does not match any known mode.
+pub fn parse_deployment_mode(s: &str) -> Result<DeploymentMode, String> {
+    match s {
+        "windows_only" => Ok(DeploymentMode::WindowsOnly),
+        "wsl_only" => Ok(DeploymentMode::WslOnly),
+        "linux_only" => Ok(DeploymentMode::LinuxOnly),
+        "coordinated" => Ok(DeploymentMode::Coordinated),
+        _ => Err(format!("Unknown deployment mode: {s}")),
+    }
+}
+
+/// Convert a `WslNetworkMode` to its string representation.
+#[cfg(target_os = "linux")]
+#[must_use]
+pub fn network_mode_to_string(mode: &WslNetworkMode) -> String {
+    match mode {
+        WslNetworkMode::Nat => "nat".to_string(),
+        WslNetworkMode::Mirrored => "mirrored".to_string(),
+        WslNetworkMode::NotInstalled => "not_installed".to_string(),
+    }
+}
+
+/// Determine the proxy strategy for a given network mode.
+#[cfg(target_os = "linux")]
+#[must_use]
+fn determine_strategy(mode: &WslNetworkMode) -> String {
+    match mode {
+        WslNetworkMode::Mirrored => "skip_config".to_string(),
+        WslNetworkMode::Nat => "explicit_config".to_string(),
+        WslNetworkMode::NotInstalled => "fallback_to_explicit".to_string(),
+    }
+}
+
 // ── Tauri Commands ─────────────────────────────────────────────────────────
 
 use std::sync::Mutex;
@@ -249,6 +332,7 @@ pub struct AppState {
     pub mihomo_manager: Mutex<MihomoManager>,
     pub proxy_guard: Mutex<ProxyGuard>,
     pub audit_logger: Mutex<AuditLogger>,
+    pub deployment_manager: Mutex<DeploymentManager>,
 }
 
 /// Error type returned by all Tauri commands.
@@ -493,6 +577,106 @@ pub fn get_audit_log(
     Ok(AuditLogResponse {
         total_count,
         records: dtos,
+    })
+}
+
+// ── Deployment Commands ────────────────────────────────────────────────────
+
+/// Detect the appropriate deployment mode for the current platform.
+///
+/// # Errors
+///
+/// Returns an error if the stored configuration cannot be read.
+pub fn detect_deployment_mode(
+    depl_mgr: &DeploymentManager,
+) -> Result<DeploymentModeResponse, String> {
+    let detected = DeploymentManager::detect_deployment_mode();
+    let stored = depl_mgr
+        .get_deployment_mode()
+        .map_err(|e| command_error("Failed to read stored deployment mode", e))?;
+    let is_auto = deployment_mode_to_string(&detected) == deployment_mode_to_string(&stored);
+
+    Ok(DeploymentModeResponse {
+        mode: deployment_mode_to_string(&stored),
+        detected: deployment_mode_to_string(&detected),
+        is_auto,
+    })
+}
+
+/// Get the current deployment mode from persisted configuration.
+///
+/// # Errors
+///
+/// Returns an error if the configuration cannot be read.
+pub fn get_deployment_mode(
+    depl_mgr: &DeploymentManager,
+) -> Result<DeploymentModeResponse, String> {
+    let mode = depl_mgr
+        .get_deployment_mode()
+        .map_err(|e| command_error("Failed to get deployment mode", e))?;
+    let detected = DeploymentManager::detect_deployment_mode();
+    let is_auto = deployment_mode_to_string(&detected) == deployment_mode_to_string(&mode);
+
+    Ok(DeploymentModeResponse {
+        mode: deployment_mode_to_string(&mode),
+        detected: deployment_mode_to_string(&detected),
+        is_auto,
+    })
+}
+
+/// Set and persist a new deployment mode.
+///
+/// # Errors
+///
+/// Returns an error if the mode string is invalid or persistence fails.
+pub fn set_deployment_mode(
+    depl_mgr: &DeploymentManager,
+    mode: &str,
+) -> Result<DeploymentModeResponse, String> {
+    let parsed = parse_deployment_mode(mode)
+        .map_err(|e| command_error("Invalid deployment mode", e))?;
+    depl_mgr
+        .set_deployment_mode(parsed)
+        .map_err(|e| command_error("Failed to set deployment mode", e))?;
+
+    let detected = DeploymentManager::detect_deployment_mode();
+    let is_auto = deployment_mode_to_string(&detected) == mode;
+
+    Ok(DeploymentModeResponse {
+        mode: mode.to_string(),
+        detected: deployment_mode_to_string(&detected),
+        is_auto,
+    })
+}
+
+/// Get the current WSL status (Linux only).
+///
+/// # Errors
+///
+/// Returns an error if the WSL detection fails.
+#[cfg(target_os = "linux")]
+pub fn get_wsl_status(depl_mgr: &DeploymentManager) -> Result<WslStatusResponse, String> {
+    let status = depl_mgr.get_wsl_status();
+    Ok(WslStatusResponse {
+        is_wsl: status.is_wsl,
+        distro_name: status.distro.as_ref().map(|d| d.name.clone()),
+        distro_version: status.distro.as_ref().map(|d| d.version.clone()),
+        network_mode: network_mode_to_string(&status.network_mode),
+        reachable: status.reachable,
+    })
+}
+
+/// Get the WSL network mode and proxy strategy (Linux only).
+///
+/// # Errors
+///
+/// Returns an error if the network mode detection fails.
+#[cfg(target_os = "linux")]
+pub fn get_network_mode(depl_mgr: &DeploymentManager) -> Result<NetworkModeResponse, String> {
+    let mode = depl_mgr.get_network_mode();
+    Ok(NetworkModeResponse {
+        mode: network_mode_to_string(&mode),
+        proxy_strategy: determine_strategy(&mode),
     })
 }
 
@@ -1201,5 +1385,208 @@ mod tests {
         let payload = stop_service(&mut mihomo, &mgr).expect("stop");
         assert!(payload.recovery_triggered);
         assert_eq!(payload.reason, "User requested");
+    }
+
+    // ── Deployment DTO round-trip tests ─────────────────────────────────────
+
+    #[test]
+    fn deployment_mode_response_roundtrip() {
+        let resp = DeploymentModeResponse {
+            mode: "linux_only".to_string(),
+            detected: "wsl_only".to_string(),
+            is_auto: false,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: DeploymentModeResponse = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.mode, "linux_only");
+        assert_eq!(back.detected, "wsl_only");
+        assert!(!back.is_auto);
+    }
+
+    #[test]
+    fn wsl_status_response_roundtrip() {
+        let resp = WslStatusResponse {
+            is_wsl: true,
+            distro_name: Some("Ubuntu".to_string()),
+            distro_version: Some("22.04".to_string()),
+            network_mode: "nat".to_string(),
+            reachable: true,
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: WslStatusResponse = serde_json::from_str(&json).expect("deserialize");
+        assert!(back.is_wsl);
+        assert_eq!(back.distro_name, Some("Ubuntu".to_string()));
+        assert_eq!(back.distro_version, Some("22.04".to_string()));
+        assert_eq!(back.network_mode, "nat");
+        assert!(back.reachable);
+    }
+
+    #[test]
+    fn network_mode_response_roundtrip() {
+        let resp = NetworkModeResponse {
+            mode: "mirrored".to_string(),
+            proxy_strategy: "skip_config".to_string(),
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: NetworkModeResponse = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.mode, "mirrored");
+        assert_eq!(back.proxy_strategy, "skip_config");
+    }
+
+    // ── Deployment helper function tests ────────────────────────────────────
+
+    #[test]
+    fn deployment_mode_to_string_all_variants() {
+        assert_eq!(
+            deployment_mode_to_string(&DeploymentMode::WindowsOnly),
+            "windows_only"
+        );
+        assert_eq!(
+            deployment_mode_to_string(&DeploymentMode::WslOnly),
+            "wsl_only"
+        );
+        assert_eq!(
+            deployment_mode_to_string(&DeploymentMode::LinuxOnly),
+            "linux_only"
+        );
+        assert_eq!(
+            deployment_mode_to_string(&DeploymentMode::Coordinated),
+            "coordinated"
+        );
+    }
+
+    #[test]
+    fn parse_deployment_mode_valid_inputs() {
+        assert_eq!(
+            parse_deployment_mode("windows_only").expect("parse"),
+            DeploymentMode::WindowsOnly
+        );
+        assert_eq!(
+            parse_deployment_mode("wsl_only").expect("parse"),
+            DeploymentMode::WslOnly
+        );
+        assert_eq!(
+            parse_deployment_mode("linux_only").expect("parse"),
+            DeploymentMode::LinuxOnly
+        );
+        assert_eq!(
+            parse_deployment_mode("coordinated").expect("parse"),
+            DeploymentMode::Coordinated
+        );
+    }
+
+    #[test]
+    fn parse_deployment_mode_invalid_returns_error() {
+        let err = parse_deployment_mode("unknown_mode").expect_err("should fail");
+        assert!(err.contains("Unknown deployment mode"));
+        assert!(parse_deployment_mode("").is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn network_mode_to_string_all_variants() {
+        assert_eq!(network_mode_to_string(&WslNetworkMode::Nat), "nat");
+        assert_eq!(network_mode_to_string(&WslNetworkMode::Mirrored), "mirrored");
+        assert_eq!(
+            network_mode_to_string(&WslNetworkMode::NotInstalled),
+            "not_installed"
+        );
+    }
+
+    // ── Deployment command integration tests ────────────────────────────────
+
+    use crate::managers::config_manager::ConfigManager;
+
+    fn setup_deployment(dir: &std::path::Path) -> DeploymentManager {
+        let config_dir = dir.join("config");
+        let install_root = dir.join("app");
+        let cm = ConfigManager::new(config_dir).expect("create config manager");
+        DeploymentManager::new(cm, install_root)
+    }
+
+    #[test]
+    fn cmd_detect_deployment_mode() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let depl_mgr = setup_deployment(dir.path());
+        let resp = detect_deployment_mode(&depl_mgr).expect("detect");
+        // mode should be a valid snake_case string
+        assert!(
+            ["windows_only", "wsl_only", "linux_only", "coordinated"]
+                .contains(&resp.mode.as_str()),
+            "unexpected mode: {}",
+            resp.mode
+        );
+        // detected should also be valid
+        assert!(
+            ["windows_only", "wsl_only", "linux_only", "coordinated"]
+                .contains(&resp.detected.as_str()),
+            "unexpected detected: {}",
+            resp.detected
+        );
+    }
+
+    #[test]
+    fn cmd_get_deployment_mode() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let depl_mgr = setup_deployment(dir.path());
+        let resp = get_deployment_mode(&depl_mgr).expect("get mode");
+        // Default stored mode is WindowsOnly
+        assert_eq!(resp.mode, "windows_only");
+    }
+
+    #[test]
+    fn cmd_set_deployment_mode() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let depl_mgr = setup_deployment(dir.path());
+
+        let resp = set_deployment_mode(&depl_mgr, "linux_only").expect("set mode");
+        assert_eq!(resp.mode, "linux_only");
+
+        // Verify persistence
+        let resp2 = get_deployment_mode(&depl_mgr).expect("get mode after set");
+        assert_eq!(resp2.mode, "linux_only");
+    }
+
+    #[test]
+    fn cmd_set_deployment_mode_invalid() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let depl_mgr = setup_deployment(dir.path());
+        let err = set_deployment_mode(&depl_mgr, "bogus").expect_err("should fail");
+        assert!(err.contains("Invalid deployment mode"));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn cmd_get_wsl_status() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let depl_mgr = setup_deployment(dir.path());
+        let resp = get_wsl_status(&depl_mgr).expect("wsl status");
+        // network_mode must be a valid string
+        assert!(
+            ["nat", "mirrored", "not_installed"].contains(&resp.network_mode.as_str()),
+            "unexpected network_mode: {}",
+            resp.network_mode
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn cmd_get_network_mode() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let depl_mgr = setup_deployment(dir.path());
+        let resp = get_network_mode(&depl_mgr).expect("network mode");
+        // mode must be valid
+        assert!(
+            ["nat", "mirrored", "not_installed"].contains(&resp.mode.as_str()),
+            "unexpected mode: {}",
+            resp.mode
+        );
+        // proxy_strategy must be valid
+        assert!(
+            ["explicit_config", "skip_config", "fallback_to_explicit"]
+                .contains(&resp.proxy_strategy.as_str()),
+            "unexpected proxy_strategy: {}",
+            resp.proxy_strategy
+        );
     }
 }

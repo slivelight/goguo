@@ -3,6 +3,19 @@ use crate::models::baseline::{Platform, StateItem, StateItemCategory};
 #[cfg(target_os = "windows")]
 pub mod windows;
 
+#[cfg(target_os = "linux")]
+pub mod linux;
+
+#[cfg(target_os = "linux")]
+pub mod linux_base;
+
+#[cfg(target_os = "linux")]
+pub mod wsl;
+
+#[cfg(target_os = "linux")]
+#[allow(unused_imports)] // Re-exported for downstream adapters (WslAdapter, LinuxAdapter)
+pub(crate) use linux_base::ShellExecutor;
+
 /// Metadata describing a state item that a platform adapter can detect or restore.
 pub struct StateItemDefinition {
     pub id: String,
