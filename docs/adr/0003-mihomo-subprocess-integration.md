@@ -1,6 +1,6 @@
 # ADR-0003: mihomo 集成架构 — 托管子进程
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-05-12
 - **Deciders**: 用户
 - **Affected Features**: 001, 003

@@ -1,8 +1,8 @@
 # Feature 001 Progress
 
 - **Feature**: 001-baseline-restore
-- **Current Stage**: hf-finalize
-- **Next Action**: 完成收尾检查
+- **Current Stage**: closed
+- **Next Action**: null
 
 ## 阶段进度
 
@@ -13,7 +13,7 @@
 | hf-design | DONE | 2026-05-15 |
 | hf-tasks | DONE | 2026-05-18 |
 | hf-test-driven-dev | DONE | 2026-05-20 |
-| hf-finalize | 进行中 | — |
+| hf-finalize | DONE | 2026-05-20 |
 
 ## 任务进度
 

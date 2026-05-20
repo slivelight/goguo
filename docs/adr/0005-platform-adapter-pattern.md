@@ -1,6 +1,6 @@
 # ADR-0005: 跨平台策略 — Platform Adapter 模式
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-05-12
 - **Deciders**: 用户
 - **Affected Features**: 001, 002

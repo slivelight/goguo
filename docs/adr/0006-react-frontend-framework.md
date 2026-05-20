@@ -1,6 +1,6 @@
 # ADR-0006: 前端框架选型 — React + TypeScript
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-05-12
 - **Deciders**: 用户
 - **Affected Features**: 004

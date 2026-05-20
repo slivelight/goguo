@@ -3,7 +3,8 @@
 ## 状态
 
 - **Feature ID**: 001
-- **状态**: 任务计划中（`hf-tasks`）
+- **状态**: `closed`（2026-05-20 workflow closeout）
+- **Closeout Type**: workflow-closeout
 - **关联 OPP**: OPP-002
 - **创建日期**: 2026-05-11
 
@@ -22,7 +23,9 @@
 | hf-design | 2026-05-14~15 | `design.md`（7 条标注修订 + 跨文档评审） |
 | design-review | 2026-05-15 | `reviews/design-review-2026-05-15.md` |
 | design-approval | 2026-05-15 | `approvals/design-approval-2026-05-15.md` |
-| hf-tasks | 进行中 | `tasks.md` |
+| hf-tasks | 2026-05-18 | `tasks.md` |
+| hf-test-driven-dev | 2026-05-20 | 17/17 任务完成 |
+| hf-finalize | 2026-05-20 | `closeout.md` |
 
 ## 相关 ADR
 
@@ -36,12 +39,20 @@
 |------|------|
 | `spec.md` | 已确认 |
 | `design.md` | 已确认 |
-| `tasks.md` | 草稿 |
-| `progress.md` | 活跃 |
+| `tasks.md` | 已确认 |
+| `progress.md` | 已关闭 |
+| `closeout.md` | 已完成 |
+
+## Linked Long-Term Assets
+
+- `docs/architecture.md`（架构概述）
+- `docs/adr/0003-mihomo-subprocess-integration.md`（accepted）
+- `docs/adr/0004-file-based-json-storage.md`（accepted）
+- `docs/adr/0005-platform-adapter-pattern.md`（accepted）
 
 ## 当前 active task
 
-- 执行 `tasks.md` 任务计划（T1.1 项目脚手架）
+- 无（workflow 已关闭）
 
 ## 上游输入
 

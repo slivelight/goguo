@@ -180,3 +180,11 @@
 - 修复 `rust-toolchain.toml` TOML 格式错误，更新为 stable 通道。
 - 更新 `.gitignore`：移除对 `src-tauri/tauri.conf.json` 的忽略。
 - 验证通过：`cargo build`（Rust 后端编译成功）、`pnpm build`（前端构建成功）、`cargo clippy`（零 error）。
+
+### 新增（2026-05-20）
+
+- 完成 Feature 001 全部 17 个任务（T1.1 项目脚手架 ~ T10.1 集成测试），包括 WindowsAdapter（T3.2，在 Windows 环境下 TDD 完成）。
+- 实现 8 个核心模块：数据模型、存储层、PlatformAdapter trait、WindowsAdapter、BaselineManager、MihomoManager、AuditLogger、ConfigManager、ProxyGuard、RecoveryManager、Tauri Commands。
+- 测试覆盖：144 个单元测试 + 11 个集成测试 = 155 个测试全绿，clippy 零警告。
+- 翻转 ADR-0002/0003/0004/0005/0006 状态为 `accepted`（设计已落地）。
+- Feature 001 workflow closeout 完成。

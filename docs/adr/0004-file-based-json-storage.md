@@ -1,6 +1,6 @@
 # ADR-0004: 数据存储策略 — 安装根目录下文件式 JSON
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-05-12
 - **Deciders**: 用户
 - **Affected Features**: 001, 002, 003, 004

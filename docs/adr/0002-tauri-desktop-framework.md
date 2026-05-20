@@ -1,6 +1,6 @@
 # ADR-0002: Desktop App Framework — Tauri
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-05-12
 - **Deciders**: 用户
 - **Affected Features**: 001, 002, 003, 004
