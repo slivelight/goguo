@@ -25,14 +25,14 @@
 | T2.2 | 规则预览/回退 | ✅ done |
 | T3.1 | ProbeService | ✅ done |
 | T4.1 | NodePool+HealthChecker | ✅ done |
-| T5.1 | SubscriptionParser | ⬜ pending |
+| T5.1 | SubscriptionParser | ✅ done |
 | T6.1 | B+C 验证 | ⬜ pending |
 | T7.1 | SiteRuleEngine | ⬜ pending |
 | T8.1 | Tauri Commands | ⬜ pending |
 | T9.1 | 集成测试 | ⬜ pending |
 
-**Current Active Task**: T5.1（SubscriptionParser 订阅解析）
-**并行候选**: T6.1（需 T2.1+T3.1）
+**Current Active Task**: T6.1（B+C 验证流程）
+**并行候选**: 无（需单独完成）
 
 ## 测试统计
 
@@ -41,9 +41,11 @@
 | models::site | 10 |
 | models::probe | 16 |
 | models::node | 16 |
+| models::subscription | 12 |
 | services::site_definition_store | 16 |
 | services::rule_generator | 31 |
 | services::probe_service | 15 |
 | services::node_pool | 15 |
-| **Feature 003 当前合计** | **119** |
-| 全项目总测试 | **368** |
+| services::subscription_parser | 21 |
+| **Feature 003 当前合计** | **152** |
+| 全项目总测试 | **401** |
