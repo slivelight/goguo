@@ -1,4 +1,5 @@
 pub mod audit_logger;
+pub mod node_pool;
 pub mod probe_service;
 pub mod proxy_guard;
 pub mod recovery;

@@ -407,7 +407,6 @@ mod tests {
         assert_eq!(service.probe_interval_for_site("test"), Duration::from_secs(30));
     }
 
-    #[allow(clippy::duration)]
     #[test]
     fn probe_service_probe_interval_degraded() {
         let config = ProbeConfig {
@@ -434,7 +433,9 @@ mod tests {
         service.register_site("test", "https://test.com");
         service.probe_site("test");
         
-        assert_eq!(service.probe_interval_for_site("test"), Duration::from_secs(120));
+        let interval = service.probe_interval_for_site("test");
+        let expected = Duration::from_secs(config.degraded_interval_secs);
+        assert_eq!(interval, expected);
     }
 
     #[test]
