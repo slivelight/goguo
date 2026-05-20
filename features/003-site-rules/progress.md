@@ -21,18 +21,18 @@
 |------|------|------|
 | T1.1 | SiteDefinition+Store | ✅ done |
 | T1.2 | 预设模板 | ✅ done |
-| T2.1 | RuleGenerator | 🔄 in_progress |
-| T2.2 | 规则预览/回退 | ⬜ pending |
-| T3.1 | ProbeService | ⬜ ready |
-| T4.1 | NodePool+HealthChecker | ⬜ ready |
+| T2.1 | RuleGenerator | ✅ done |
+| T2.2 | 规则预览/回退 | ✅ done |
+| T3.1 | ProbeService | 🔄 in_progress |
+| T4.1 | NodePool+HealthChecker | ⬜ pending |
 | T5.1 | SubscriptionParser | ⬜ pending |
 | T6.1 | B+C 验证 | ⬜ pending |
 | T7.1 | SiteRuleEngine | ⬜ pending |
 | T8.1 | Tauri Commands | ⬜ pending |
 | T9.1 | 集成测试 | ⬜ pending |
 
-**Current Active Task**: T2.1（RuleGenerator 规则生成）
-**并行候选**: T3.1, T4.1
+**Current Active Task**: T3.1（ProbeService 分层探测）
+**并行候选**: T4.1, T5.1
 
 ## 测试统计
 
@@ -40,5 +40,6 @@
 |------|--------|
 | models::site | 10 |
 | services::site_definition_store | 16 |
-| **Feature 003 当前合计** | **26** |
-| 全项目总测试 | **275** |
+| services::rule_generator | 31 |
+| **Feature 003 当前合计** | **57** |
+| 全项目总测试 | **306** |
