@@ -220,6 +220,208 @@ impl SiteDefinition {
             }),
         }
     }
+
+    #[must_use]
+    pub fn stackoverflow_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "stackoverflow.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::CrossDependency, vec![
+            "stackexchange.com".to_string(),
+            "superuser.com".to_string(),
+            "askubuntu.com".to_string(),
+        ]);
+
+        Self {
+            id: "stackoverflow".to_string(),
+            name: "Stack Overflow".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://stackoverflow.com".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn pypi_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "pypi.org".to_string(),
+        ]);
+        domains.insert(DomainCategory::Packages, vec![
+            "files.pythonhosted.org".to_string(),
+        ]);
+
+        Self {
+            id: "pypi".to_string(),
+            name: "PyPI".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://pypi.org".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn crates_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "crates.io".to_string(),
+        ]);
+        domains.insert(DomainCategory::Packages, vec![
+            "static.crates.io".to_string(),
+        ]);
+
+        Self {
+            id: "crates".to_string(),
+            name: "Crates.io".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://crates.io".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn oracle_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "oracle.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Services, vec![
+            "cloud.oracle.com".to_string(),
+        ]);
+
+        Self {
+            id: "oracle".to_string(),
+            name: "Oracle".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://www.oracle.com".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn wikipedia_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "wikipedia.org".to_string(),
+        ]);
+        domains.insert(DomainCategory::Cdn, vec![
+            "wikimedia.org".to_string(),
+        ]);
+
+        Self {
+            id: "wikipedia".to_string(),
+            name: "Wikipedia".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://www.wikipedia.org".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn whatsapp_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "whatsapp.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Cdn, vec![
+            "whatsapp.net".to_string(),
+        ]);
+
+        Self {
+            id: "whatsapp".to_string(),
+            name: "WhatsApp".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://www.whatsapp.com".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn instagram_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "instagram.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Cdn, vec![
+            "cdninstagram.com".to_string(),
+            "fbcdn.net".to_string(),
+        ]);
+
+        Self {
+            id: "instagram".to_string(),
+            name: "Instagram".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://www.instagram.com".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn canva_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "canva.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Cdn, vec![
+            "cdn.canva.com".to_string(),
+        ]);
+
+        Self {
+            id: "canva".to_string(),
+            name: "Canva".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://www.canva.com".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn twitter_x_default() -> Self {
+        let mut domains = HashMap::new();
+        domains.insert(DomainCategory::Core, vec![
+            "x.com".to_string(),
+            "twitter.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Cdn, vec![
+            "twimg.com".to_string(),
+        ]);
+
+        Self {
+            id: "twitter-x".to_string(),
+            name: "X (Twitter)".to_string(),
+            domains,
+            health_check: Some(HealthCheckConfig {
+                url: "https://x.com".to_string(),
+                timeout_secs: 5,
+                failure_threshold: 3,
+            }),
+        }
+    }
 }
 
 #[cfg(test)]

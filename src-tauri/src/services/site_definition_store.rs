@@ -19,6 +19,15 @@ impl SiteDefinitionStore {
         built_in.insert("chatgpt".to_string(), SiteDefinition::chatgpt_default());
         built_in.insert("docker".to_string(), SiteDefinition::docker_default());
         built_in.insert("google".to_string(), SiteDefinition::google_default());
+        built_in.insert("stackoverflow".to_string(), SiteDefinition::stackoverflow_default());
+        built_in.insert("pypi".to_string(), SiteDefinition::pypi_default());
+        built_in.insert("crates".to_string(), SiteDefinition::crates_default());
+        built_in.insert("oracle".to_string(), SiteDefinition::oracle_default());
+        built_in.insert("wikipedia".to_string(), SiteDefinition::wikipedia_default());
+        built_in.insert("whatsapp".to_string(), SiteDefinition::whatsapp_default());
+        built_in.insert("instagram".to_string(), SiteDefinition::instagram_default());
+        built_in.insert("canva".to_string(), SiteDefinition::canva_default());
+        built_in.insert("twitter-x".to_string(), SiteDefinition::twitter_x_default());
 
         Self { built_in, custom_dir }
     }
@@ -149,6 +158,22 @@ impl SiteDefinitionStore {
             "twitter-x".to_string(),
         ]
     }
+
+    #[must_use]
+    pub fn load_developer_template(&self) -> Vec<SiteDefinition> {
+        Self::developer_template_ids()
+            .iter()
+            .filter_map(|id| self.get(id))
+            .collect()
+    }
+
+    #[must_use]
+    pub fn load_office_template(&self) -> Vec<SiteDefinition> {
+        Self::office_template_ids()
+            .iter()
+            .filter_map(|id| self.get(id))
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -163,9 +188,11 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         let store = SiteDefinitionStore::new(dir.path().to_path_buf());
         let ids = store.built_in_ids();
-        assert_eq!(ids.len(), 6);
+        assert_eq!(ids.len(), 15);
         assert!(ids.contains(&"github".to_string()));
         assert!(ids.contains(&"chatgpt".to_string()));
+        assert!(ids.contains(&"stackoverflow".to_string()));
+        assert!(ids.contains(&"twitter-x".to_string()));
     }
 
     #[test]
@@ -191,7 +218,7 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         let store = SiteDefinitionStore::new(dir.path().to_path_buf());
         let all = store.list_all();
-        assert_eq!(all.len(), 6);
+        assert_eq!(all.len(), 15);
     }
 
     #[test]
@@ -238,7 +265,7 @@ mod tests {
         
         store.save_custom(&custom).expect("save");
         let all = store.list_all();
-        assert_eq!(all.len(), 7);
+        assert_eq!(all.len(), 16);
         assert!(all.iter().any(|s| s.id == "custom"));
     }
 
@@ -293,6 +320,10 @@ mod tests {
         assert!(ids.contains(&"claude".to_string()));
         assert!(ids.contains(&"chatgpt".to_string()));
         assert!(ids.contains(&"docker".to_string()));
+        assert!(ids.contains(&"stackoverflow".to_string()));
+        assert!(ids.contains(&"pypi".to_string()));
+        assert!(ids.contains(&"crates".to_string()));
+        assert!(ids.contains(&"oracle".to_string()));
     }
 
     #[test]
@@ -300,6 +331,47 @@ mod tests {
         let ids = SiteDefinitionStore::office_template_ids();
         assert_eq!(ids.len(), 6);
         assert!(ids.contains(&"google".to_string()));
+        assert!(ids.contains(&"wikipedia".to_string()));
+        assert!(ids.contains(&"whatsapp".to_string()));
+        assert!(ids.contains(&"instagram".to_string()));
+        assert!(ids.contains(&"canva".to_string()));
+        assert!(ids.contains(&"twitter-x".to_string()));
+    }
+
+    #[test]
+    fn load_developer_template_returns_all_sites() {
+        let dir = tempdir().expect("tempdir");
+        let store = SiteDefinitionStore::new(dir.path().to_path_buf());
+        let sites = store.load_developer_template();
+        assert_eq!(sites.len(), 9);
+        assert!(sites.iter().any(|s| s.id == "github"));
+        assert!(sites.iter().any(|s| s.id == "chatgpt"));
+        assert!(sites.iter().any(|s| s.id == "stackoverflow"));
+    }
+
+    #[test]
+    fn load_office_template_returns_all_sites() {
+        let dir = tempdir().expect("tempdir");
+        let store = SiteDefinitionStore::new(dir.path().to_path_buf());
+        let sites = store.load_office_template();
+        assert_eq!(sites.len(), 6);
+        assert!(sites.iter().any(|s| s.id == "google"));
+        assert!(sites.iter().any(|s| s.id == "wikipedia"));
+        assert!(sites.iter().any(|s| s.id == "twitter-x"));
+    }
+
+    #[test]
+    fn template_sites_domain_count() {
+        let dir = tempdir().expect("tempdir");
+        let store = SiteDefinitionStore::new(dir.path().to_path_buf());
+        
+        let dev_sites = store.load_developer_template();
+        let total_domains: usize = dev_sites.iter().map(SiteDefinition::domain_count).sum();
+        assert!(total_domains >= 20, "developer template should have at least 20 domains");
+        
+        let office_sites = store.load_office_template();
+        let office_domains: usize = office_sites.iter().map(SiteDefinition::domain_count).sum();
+        assert!(office_domains >= 10, "office template should have at least 10 domains");
     }
 
     #[test]

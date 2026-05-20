@@ -20,8 +20,8 @@
 | Task | 目标 | 状态 |
 |------|------|------|
 | T1.1 | SiteDefinition+Store | ✅ done |
-| T1.2 | 预设模板 | 🔄 in_progress |
-| T2.1 | RuleGenerator | ⬜ ready（T1.1完成后） |
+| T1.2 | 预设模板 | ✅ done |
+| T2.1 | RuleGenerator | 🔄 in_progress |
 | T2.2 | 规则预览/回退 | ⬜ pending |
 | T3.1 | ProbeService | ⬜ ready |
 | T4.1 | NodePool+HealthChecker | ⬜ ready |
@@ -31,14 +31,14 @@
 | T8.1 | Tauri Commands | ⬜ pending |
 | T9.1 | 集成测试 | ⬜ pending |
 
-**Current Active Task**: T1.2（预设模板与域名展开）
-**并行候选**: T3.1, T4.1（F001 前置已满足）
+**Current Active Task**: T2.1（RuleGenerator 规则生成）
+**并行候选**: T3.1, T4.1
 
 ## 测试统计
 
 | 模块 | 测试数 |
 |------|--------|
 | models::site | 10 |
-| services::site_definition_store | 12 |
-| **Feature 003 当前合计** | **22** |
-| 全项目总测试 | **272** |
+| services::site_definition_store | 16 |
+| **Feature 003 当前合计** | **26** |
+| 全项目总测试 | **275** |
