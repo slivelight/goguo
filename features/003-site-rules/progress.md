@@ -27,11 +27,11 @@
 | T4.1 | NodePool+HealthChecker | ✅ done |
 | T5.1 | SubscriptionParser | ✅ done |
 | T6.1 | B+C 验证 | ✅ done |
-| T7.1 | SiteRuleEngine | ⬜ pending |
+| T7.1 | SiteRuleEngine | ✅ done |
 | T8.1 | Tauri Commands | ⬜ pending |
 | T9.1 | 集成测试 | ⬜ pending |
 
-**Current Active Task**: T7.1（SiteRuleEngine 编排层）
+**Current Active Task**: T8.1（Tauri Commands）
 **并行候选**: 无
 
 ## 测试统计
@@ -48,5 +48,6 @@
 | services::node_pool | 15 |
 | services::subscription_parser | 21 |
 | services::rule_verifier | 12 |
-| **Feature 003 当前合计** | **164** |
-| 全项目总测试 | **413** |
+| engines::site_rule_engine | 20 |
+| **Feature 003 当前合计** | **184** |
+| 全项目总测试 | **433** |

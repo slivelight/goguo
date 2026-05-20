@@ -128,6 +128,7 @@ impl RuleGenerator {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RuleStorage {
     rules_dir: PathBuf,
 }

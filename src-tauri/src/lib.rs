@@ -1,5 +1,6 @@
 pub mod adapters;
 pub mod commands;
+pub mod engines;
 pub mod managers;
 pub mod models;
 pub mod services;
