@@ -1,8 +1,8 @@
 # Feature 002 Progress
 
 - **Feature**: 002-wsl-support
-- **Current Stage**: hf-tasks
-- **Next Action**: hf-tasks-review（任务计划审查）
+- **Current Stage**: hf-finalize
+- **Next Action**: 完成收尾检查
 
 ## 阶段进度
 
@@ -11,21 +11,36 @@
 | hf-product-discovery | DONE | 2026-05-11 |
 | hf-specify | DONE | 2026-05-11 |
 | hf-design | DONE | 2026-05-15 |
-| hf-tasks | 进行中 | — |
-| hf-test-driven-dev | — | — |
-| hf-finalize | — | — |
+| hf-tasks | DONE | 2026-05-18 |
+| hf-test-driven-dev | DONE | 2026-05-20 |
+| hf-finalize | 进行中 | — |
 
 ## 任务进度
 
 | Task | 目标 | 状态 |
 |------|------|------|
-| T2.1 | LinuxBaseAdapter | ⬜ pending（等 F001 T3.1） |
-| T2.2 | WslDetector | ⬜ pending（等 F001 T2.1） |
-| T2.3 | WslNetworkStrategy | ⬜ pending（等 T2.2） |
-| T3.1 | WslAdapter | ⬜ pending（等 T2.1+T2.2） |
-| T4.1 | LinuxAdapter | ⬜ pending（等 T2.1） |
-| T5.1 | DeploymentManager | ⬜ pending（等 T3.1+T4.1+T2.2+F001 T6.2） |
-| T6.1 | Tauri Commands | ⬜ pending（等 T5.1） |
-| T7.1 | 集成测试 | ⬜ pending（等 T6.1） |
+| T2.1 | LinuxBaseAdapter | ✅ done |
+| T2.2 | WslDetector | ✅ done |
+| T2.3 | WslNetworkStrategy | ✅ done |
+| T3.1 | WslAdapter | ✅ done |
+| T4.1 | LinuxAdapter | ✅ done |
+| T5.1 | DeploymentManager | ✅ done |
+| T6.1 | Tauri Commands | ✅ done |
+| T7.1 | 集成测试 | ✅ done |
 
-**Current Active Task**: 无（等待 F001 前置任务）
+**Current Active Task**: 全部完成（8/8），进入 hf-finalize
+
+## 测试统计
+
+| 模块 | 测试数 |
+|------|--------|
+| linux_base | 23 |
+| wsl_detector | 19 |
+| wsl_network_strategy | 7 |
+| wsl (WslAdapter) | 17 |
+| linux (LinuxAdapter) | 16 |
+| deployment_manager | 11 |
+| commands (F002 部分) | 13 |
+| integration_wsl_linux | 19 |
+| **Feature 002 合计** | **125** |
+| 全项目总测试 | **280**（250 unit + 30 integration） |
