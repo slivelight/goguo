@@ -3,9 +3,11 @@
 ## 状态
 
 - **Feature ID**: 002
-- **状态**: 任务计划中（`hf-tasks`）
+- **状态**: closed（2026-05-20 workflow closeout）
+- **Closeout Type**: workflow-closeout
 - **关联 OPP**: OPP-004
 - **创建日期**: 2026-05-11
+- **关闭日期**: 2026-05-20
 
 ## 关键日期
 
@@ -19,7 +21,9 @@
 | hf-design | 2026-05-14~15 | `design.md`（1 条标注修订 + 跨文档评审） |
 | design-review | 2026-05-15 | `reviews/design-review-2026-05-15.md` |
 | design-approval | 2026-05-15 | `approvals/design-approval-2026-05-15.md` |
-| hf-tasks | 进行中 | `tasks.md` |
+| hf-tasks | 2026-05-18 | `tasks.md` |
+| hf-test-driven-dev | 2026-05-20 | 8/8 任务完成 |
+| hf-finalize | 2026-05-20 | `closeout.md` |
 
 ## 相关 ADR
 
@@ -32,12 +36,13 @@
 |------|------|
 | `spec.md` | 已确认 |
 | `design.md` | 已确认 |
-| `tasks.md` | 草稿 |
-| `progress.md` | 活跃 |
+| `tasks.md` | 已确认 |
+| `progress.md` | 已关闭 |
+| `closeout.md` | 已确认 |
 
 ## 当前 active task
 
-- 执行 `tasks.md` 任务计划（等待 F001 M1~M4 完成）
+- 无（workflow 已关闭）
 
 ## 上游输入
 

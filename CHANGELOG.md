@@ -188,3 +188,7 @@
 - 测试覆盖：144 个单元测试 + 11 个集成测试 = 155 个测试全绿，clippy 零警告。
 - 翻转 ADR-0002/0003/0004/0005/0006 状态为 `accepted`（设计已落地）。
 - Feature 001 workflow closeout 完成。
+- 完成 Feature 002 全部 8 个任务（T2.1 LinuxBaseAdapter ~ T7.1 集成测试）。
+- 实现 7 个核心模块：LinuxBaseAdapter、WslDetector、WslNetworkStrategy、WslAdapter、LinuxAdapter、DeploymentManager、5 个 Tauri Commands。
+- 测试覆盖：125 个新增测试（Feature 002），项目总测试 280 个全绿，clippy 零警告。
+- Feature 002 workflow closeout 完成。

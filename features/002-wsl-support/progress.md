@@ -1,8 +1,8 @@
 # Feature 002 Progress
 
 - **Feature**: 002-wsl-support
-- **Current Stage**: hf-finalize
-- **Next Action**: 完成收尾检查
+- **Current Stage**: closed
+- **Next Action**: null
 
 ## 阶段进度
 
@@ -13,7 +13,7 @@
 | hf-design | DONE | 2026-05-15 |
 | hf-tasks | DONE | 2026-05-18 |
 | hf-test-driven-dev | DONE | 2026-05-20 |
-| hf-finalize | 进行中 | — |
+| hf-finalize | DONE | 2026-05-20 |
 
 ## 任务进度
 
@@ -28,7 +28,7 @@
 | T6.1 | Tauri Commands | ✅ done |
 | T7.1 | 集成测试 | ✅ done |
 
-**Current Active Task**: 全部完成（8/8），进入 hf-finalize
+**Current Active Task**: 无（已清空）
 
 ## 测试统计
 

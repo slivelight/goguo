@@ -221,8 +221,8 @@ sequenceDiagram
 | ADR | 标题 | 状态 |
 |-----|------|------|
 | [0001](docs/adr/0001-record-architecture-decisions.md) | 建立架构决策记录机制 | accepted |
-| [0002](docs/adr/0002-tauri-desktop-framework.md) | Desktop App Framework — Tauri | proposed |
-| [0003](docs/adr/0003-mihomo-subprocess-integration.md) | mihomo 集成架构 — 托管子进程 | proposed |
-| [0004](docs/adr/0004-file-based-json-storage.md) | 数据存储策略 — 安装根目录下文件式 JSON | proposed |
-| [0005](docs/adr/0005-platform-adapter-pattern.md) | 跨平台策略 — Platform Adapter 模式 | proposed |
-| [0006](docs/adr/0006-react-frontend-framework.md) | 前端框架选型 — React + TypeScript | proposed |
+| [0002](docs/adr/0002-tauri-desktop-framework.md) | Desktop App Framework — Tauri | accepted |
+| [0003](docs/adr/0003-mihomo-subprocess-integration.md) | mihomo 集成架构 — 托管子进程 | accepted |
+| [0004](docs/adr/0004-file-based-json-storage.md) | 数据存储策略 — 安装根目录下文件式 JSON | accepted |
+| [0005](docs/adr/0005-platform-adapter-pattern.md) | 跨平台策略 — Platform Adapter 模式 | accepted |
+| [0006](docs/adr/0006-react-frontend-framework.md) | 前端框架选型 — React + TypeScript | accepted |
