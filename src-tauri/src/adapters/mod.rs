@@ -1,5 +1,8 @@
 use crate::models::baseline::{Platform, StateItem, StateItemCategory};
 
+#[cfg(target_os = "windows")]
+pub mod windows;
+
 /// Metadata describing a state item that a platform adapter can detect or restore.
 pub struct StateItemDefinition {
     pub id: String,

@@ -339,8 +339,7 @@ mod hostname {
         #[cfg(target_os = "windows")]
         {
             std::env::var("COMPUTERNAME")
-                .map(OsString::from)
-                .unwrap_or_else(|_| OsString::from("unknown"))
+                .map_or_else(|_| OsString::from("unknown"), OsString::from)
         }
         #[cfg(not(any(target_os = "linux", target_os = "windows")))]
         {
