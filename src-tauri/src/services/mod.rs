@@ -4,6 +4,7 @@ pub mod probe_service;
 pub mod proxy_guard;
 pub mod recovery;
 pub mod rule_generator;
+pub mod rule_verifier;
 pub mod site_definition_store;
 pub mod subscription_parser;
 
