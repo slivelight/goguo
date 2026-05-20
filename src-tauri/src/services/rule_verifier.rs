@@ -20,7 +20,7 @@ pub struct ProbeFailure {
 
 impl ProbeFailure {
     #[must_use]
-    pub fn new(site: String, pre_reachable: bool, post_reachable: bool, reason: String) -> Self {
+    pub const fn new(site: String, pre_reachable: bool, post_reachable: bool, reason: String) -> Self {
         Self {
             site,
             pre_reachable,
@@ -30,7 +30,7 @@ impl ProbeFailure {
     }
 
     #[must_use]
-    pub fn is_regression(&self) -> bool {
+    pub const fn is_regression(&self) -> bool {
         self.pre_reachable && !self.post_reachable
     }
 }
@@ -75,6 +75,9 @@ impl RuleVerifier {
         }
     }
 
+    /// # Panics
+    ///
+    /// Panics if rule storage save fails during verification.
     pub fn verify(&mut self, rules: &[Rule]) -> VerificationResult {
         if !RuleGenerator::validate_match_direct(rules) {
             return VerificationResult::StaticCheckFailed(
@@ -89,6 +92,7 @@ impl RuleVerifier {
         let pre_results = self.probe_reference_sites();
         let _pre_failures = Self::collect_probe_failures(&pre_results);
 
+        let _ = self.rule_storage.backup_current();
         self.rule_storage
             .save_current(rules)
             .expect("save current rules");
@@ -374,5 +378,30 @@ mod tests {
         assert_eq!(extract_site_id("https://www.baidu.com"), "www_baidu_com");
         assert_eq!(extract_site_id("http://example.com"), "example_com");
         assert_eq!(extract_site_id("raw.com"), "raw_com");
+    }
+
+    #[test]
+    fn verify_creates_backup_before_save() {
+        let dir = tempdir().expect("tempdir");
+        let probe_client = std::sync::Arc::new(MockProbeClient::new());
+        let storage = RuleStorage::new(dir.path().join("rules"));
+        let config = VerificationConfig::default();
+        let mut verifier = RuleVerifier::new(probe_client, storage, config);
+
+        let old_rules = vec![
+            Rule::domain_suffix("old.com".to_string()),
+            Rule::match_direct(),
+        ];
+        verifier.rule_storage.save_current(&old_rules).expect("save old");
+
+        let new_rules = vec![
+            Rule::domain_suffix("new.com".to_string()),
+            Rule::match_direct(),
+        ];
+        let _ = verifier.verify(&new_rules);
+
+        let previous = verifier.rule_storage.load_previous().expect("load previous");
+        assert!(previous.iter().any(|r| r.domain == "old.com"),
+            "backup should contain old rules before new rules are saved");
     }
 }

@@ -49,7 +49,7 @@ pub struct ParsedNode {
 
 impl ParsedNode {
     #[must_use]
-    pub fn new(name: String, address: String, protocol: String, raw_url: String) -> Self {
+    pub const fn new(name: String, address: String, protocol: String, raw_url: String) -> Self {
         Self {
             name,
             address,
@@ -70,7 +70,7 @@ pub struct ParseResult {
 
 impl ParseResult {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             total_count: 0,
             supported_count: 0,
@@ -93,7 +93,7 @@ impl ParseResult {
     }
 
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.total_count == 0
     }
 }

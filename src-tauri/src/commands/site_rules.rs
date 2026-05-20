@@ -6,7 +6,7 @@ use crate::services::node_pool::{NodePool, NodePoolConfig};
 use crate::services::probe_service::MockProbeClient;
 use crate::services::subscription_parser::SubscriptionParser;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SiteInfo {
@@ -70,24 +70,24 @@ pub struct SubscriptionResponse {
 }
 
 pub struct SiteRulesState {
-    engine: SiteRuleEngine,
-    node_pool: NodePool,
-    subscription_parser: SubscriptionParser,
+    pub engine: Mutex<SiteRuleEngine>,
+    pub node_pool: Mutex<NodePool>,
+    pub subscription_parser: Mutex<SubscriptionParser>,
 }
 
 impl SiteRulesState {
     #[must_use]
     pub fn new(data_dir: &Path) -> Self {
         let probe_client = Arc::new(MockProbeClient::new());
-        let engine = SiteRuleEngine::new(data_dir, probe_client);
+        let engine = SiteRuleEngine::new(data_dir, probe_client, None, None);
         let node_pool = NodePool::new(NodePoolConfig::default());
         let subscription_parser = SubscriptionParser::new(
             data_dir.join("config").join("subscription-sources.json"),
         );
         Self {
-            engine,
-            node_pool,
-            subscription_parser,
+            engine: Mutex::new(engine),
+            node_pool: Mutex::new(node_pool),
+            subscription_parser: Mutex::new(subscription_parser),
         }
     }
 }
@@ -96,7 +96,7 @@ impl SiteRulesState {
 #[must_use]
 #[allow(clippy::needless_pass_by_value)]
 pub fn add_target_site(site_id: String, state: tauri::State<'_, SiteRulesState>) -> AddSiteResponse {
-    let mut engine = state.engine.clone();
+    let mut engine = state.engine.lock().expect("lock");
     let result = engine.add_site(&site_id);
     
     match result {
@@ -138,7 +138,7 @@ pub fn remove_target_site(
     site_id: String,
     state: tauri::State<'_, SiteRulesState>,
 ) -> RemoveSiteResponse {
-    let mut engine = state.engine.clone();
+    let mut engine = state.engine.lock().expect("lock");
     let result = engine.remove_site(&site_id);
     
     match result {
@@ -162,8 +162,8 @@ pub fn apply_preset_template(
     template: String,
     state: tauri::State<'_, SiteRulesState>,
 ) -> TemplateResponse {
-    let mut engine = state.engine.clone();
-    
+    let mut engine = state.engine.lock().expect("lock");
+
     let template_ids = if template == "developer" {
         crate::services::site_definition_store::SiteDefinitionStore::developer_template_ids()
     } else if template == "office" {
@@ -197,7 +197,7 @@ pub fn apply_preset_template(
 #[must_use]
 #[allow(clippy::needless_pass_by_value)]
 pub fn preview_rules(state: tauri::State<'_, SiteRulesState>) -> Vec<String> {
-    let engine = state.engine.clone();
+    let engine = state.engine.lock().expect("lock");
     engine.preview_rules()
 }
 
@@ -219,7 +219,7 @@ pub fn apply_rules(
         };
     }
     
-    let mut engine = state.engine.clone();
+    let mut engine = state.engine.lock().expect("lock");
     let reloaded = engine.reload_rules();
     
     AddSiteResponse {
@@ -238,7 +238,7 @@ pub fn apply_rules(
 pub fn get_site_reachability(
     state: tauri::State<'_, SiteRulesState>,
 ) -> ReachabilityResponse {
-    let mut engine = state.engine.clone();
+    let mut engine = state.engine.lock().expect("lock");
     ReachabilityResponse {
         sites: engine.get_reachability(),
     }
@@ -251,7 +251,7 @@ pub fn get_diagnosis(
     site_id: String,
     state: tauri::State<'_, SiteRulesState>,
 ) -> Option<SiteReachability> {
-    let mut engine = state.engine.clone();
+    let mut engine = state.engine.lock().expect("lock");
     engine.probe_site(&site_id)
 }
 
@@ -259,7 +259,7 @@ pub fn get_diagnosis(
 #[must_use]
 #[allow(clippy::needless_pass_by_value)]
 pub fn get_node_pool_status(state: tauri::State<'_, SiteRulesState>) -> NodePoolStatus {
-    let pool = state.node_pool.clone();
+    let pool = state.node_pool.lock().expect("lock");
     NodePoolStatus {
         total_nodes: pool.node_count(),
         available_nodes: pool.available_count(),
@@ -273,17 +273,17 @@ pub fn get_node_pool_status(state: tauri::State<'_, SiteRulesState>) -> NodePool
 pub fn override_rule(
     rule_type: String,
     domain: String,
-    _state: tauri::State<'_, SiteRulesState>,
+    state: tauri::State<'_, SiteRulesState>,
 ) -> bool {
-    let mut generator = crate::services::rule_generator::RuleGenerator::new();
-    
+    let mut engine = state.engine.lock().expect("lock");
+
     let rule = if rule_type == "DOMAIN-SUFFIX" {
         crate::services::rule_generator::Rule::domain_suffix(domain)
     } else {
         crate::services::rule_generator::Rule::domain_exact(domain)
     };
-    
-    generator.set_user_overrides(vec![rule]);
+
+    engine.add_user_override(rule);
     true
 }
 
@@ -309,7 +309,7 @@ pub fn import_subscription(
 pub fn get_subscription_sources(
     state: tauri::State<'_, SiteRulesState>,
 ) -> Vec<SubscriptionSource> {
-    let parser = state.subscription_parser.clone();
+    let parser = state.subscription_parser.lock().expect("lock");
     parser.load_sources().expect("load sources")
 }
 
@@ -399,7 +399,7 @@ mod tests {
     fn site_rules_state_new() {
         let dir = tempdir().expect("tempdir");
         let state = SiteRulesState::new(dir.path());
-        assert_eq!(state.engine.active_sites_count(), 0);
-        assert_eq!(state.node_pool.node_count(), 0);
+        assert_eq!(state.engine.lock().unwrap().active_sites_count(), 0);
+        assert_eq!(state.node_pool.lock().unwrap().node_count(), 0);
     }
 }

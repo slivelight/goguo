@@ -140,7 +140,8 @@ impl RuleStorage {
         Self { rules_dir }
     }
 
-    fn current_rules_path(&self) -> PathBuf {
+    #[must_use]
+    pub fn current_rules_path(&self) -> PathBuf {
         self.rules_dir.join("current-rules.yaml")
     }
 

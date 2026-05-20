@@ -64,7 +64,7 @@ pub struct NodePool {
 
 impl NodePool {
     #[must_use]
-    pub fn new(config: NodePoolConfig) -> Self {
+    pub const fn new(config: NodePoolConfig) -> Self {
         Self {
             nodes: vec![],
             current_index: 0,
@@ -92,7 +92,7 @@ impl NodePool {
     }
 
     #[must_use]
-    pub fn node_count(&self) -> usize {
+    pub const fn node_count(&self) -> usize {
         self.nodes.len()
     }
 
@@ -152,7 +152,7 @@ impl NodePool {
     }
 
     #[must_use]
-    pub fn nodes(&self) -> &Vec<ProxyNode> {
+    pub const fn nodes(&self) -> &Vec<ProxyNode> {
         &self.nodes
     }
 

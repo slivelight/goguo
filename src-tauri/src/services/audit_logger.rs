@@ -6,6 +6,88 @@ use crate::models::audit::{
 };
 use crate::storage::audit_storage::{AuditQueryParams, AuditStorage};
 
+/// Trait for audit logging operations, enabling dependency injection.
+pub trait AuditLog: Send + Sync {
+    /// Log a successful action.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the record cannot be appended.
+    fn log_success(&self, action: AuditAction, target: &str, details: serde_json::Value) -> std::io::Result<()>;
+    /// Log a failed action.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the record cannot be appended.
+    fn log_failure(&self, action: AuditAction, target: &str, reason: &str, details: serde_json::Value) -> std::io::Result<()>;
+}
+
+impl AuditLog for AuditLogger {
+    fn log_success(&self, action: AuditAction, target: &str, details: serde_json::Value) -> std::io::Result<()> {
+        Self::log_success(self, action, target, details)
+    }
+
+    fn log_failure(&self, action: AuditAction, target: &str, reason: &str, details: serde_json::Value) -> std::io::Result<()> {
+        Self::log_failure(self, action, target, reason, details)
+    }
+}
+
+/// Mock audit log for testing.
+pub struct MockAuditLog {
+    records: Mutex<Vec<AuditRecord>>,
+}
+
+impl MockAuditLog {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            records: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned.
+    #[must_use]
+    pub fn records(&self) -> Vec<AuditRecord> {
+        self.records.lock().unwrap().clone()
+    }
+}
+
+impl Default for MockAuditLog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AuditLog for MockAuditLog {
+    fn log_success(&self, action: AuditAction, target: &str, details: serde_json::Value) -> std::io::Result<()> {
+        let record = AuditRecord {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            action,
+            target: target.to_string(),
+            result: AuditResult::Success,
+            reason: None,
+            details,
+        };
+        self.records.lock().unwrap().push(record);
+        Ok(())
+    }
+
+    fn log_failure(&self, action: AuditAction, target: &str, reason: &str, details: serde_json::Value) -> std::io::Result<()> {
+        let record = AuditRecord {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            action,
+            target: target.to_string(),
+            result: AuditResult::Failure,
+            reason: Some(reason.to_string()),
+            details,
+        };
+        self.records.lock().unwrap().push(record);
+        Ok(())
+    }
+}
+
 /// High-level audit logging service wrapping `AuditStorage`.
 pub struct AuditLogger {
     storage: AuditStorage,
@@ -329,5 +411,30 @@ mod tests {
             .query(&AuditQueryParams::default())
             .expect("query");
         assert_eq!(result.total_count, 5);
+    }
+
+    #[test]
+    fn mock_audit_log_records_success() {
+        let mock = MockAuditLog::new();
+        mock.log_success(AuditAction::SiteAdd, "github", serde_json::json!({}))
+            .expect("log");
+
+        let records = mock.records();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].action, AuditAction::SiteAdd);
+        assert_eq!(records[0].target, "github");
+        assert_eq!(records[0].result, AuditResult::Success);
+    }
+
+    #[test]
+    fn mock_audit_log_records_failure() {
+        let mock = MockAuditLog::new();
+        mock.log_failure(AuditAction::SiteAdd, "github", "verify failed", serde_json::json!({}))
+            .expect("log");
+
+        let records = mock.records();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].result, AuditResult::Failure);
+        assert_eq!(records[0].reason, Some("verify failed".to_string()));
     }
 }

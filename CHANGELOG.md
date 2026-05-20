@@ -192,3 +192,11 @@
 - 实现 7 个核心模块：LinuxBaseAdapter、WslDetector、WslNetworkStrategy、WslAdapter、LinuxAdapter、DeploymentManager、5 个 Tauri Commands。
 - 测试覆盖：125 个新增测试（Feature 002），项目总测试 280 个全绿，clippy 零警告。
 - Feature 002 workflow closeout 完成。
+
+### 新增（2026-05-20 续）
+
+- 完成 Feature 003 全部 11 个任务（T1.1 SiteDefinition+Store ~ T9.1 集成测试），含业务审视 8 项缺陷修复（P1-P8）。
+- 实现 12 个核心模块：SiteDefinition、SiteDefinitionStore、RuleGenerator、RuleStorage、ProbeService、NodePool、SubscriptionParser、RuleVerifier、SiteRuleEngine、Tauri Commands、AuditLog trait/MockAuditLog、MihomoReloader trait/MockMihomoReloader。
+- 测试覆盖：201 个单元测试 + 5 个集成测试 = 206 个 F003 测试全绿，项目总测试 489 个全绿，clippy 零警告。
+- 引入 trait 抽象（MihomoReloader、AuditLog）实现依赖注入与可测试架构。
+- Feature 003 workflow closeout 完成。

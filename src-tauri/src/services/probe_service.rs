@@ -147,10 +147,45 @@ impl ProbeService {
 
     pub fn probe_all(&mut self) -> Vec<ProbeResult> {
         let site_ids: Vec<String> = self.site_urls.keys().cloned().collect();
-        site_ids
-            .iter()
-            .filter_map(|id| self.probe_site(id))
-            .collect()
+        let site_urls = &self.site_urls;
+        let config = &self.config;
+        let client = &self.client;
+
+        let results: Vec<(String, ProbeResult)> = std::thread::scope(|s| {
+            let mut handles = Vec::new();
+            for id in &site_ids {
+                let Some(url) = site_urls.get(id) else { continue };
+                let timeout = config.timeout();
+                handles.push((id.clone(), s.spawn(move || {
+                    let level1 = client.probe_http_head(url, timeout);
+                    if level1.reachable {
+                        return level1;
+                    }
+                    let level2 = client.probe_http_get(url, timeout);
+                    if level2.reachable {
+                        return level2;
+                    }
+                    let domain = extract_domain(url);
+                    client.probe_tls(domain, timeout)
+                })));
+            }
+
+            handles
+                .into_iter()
+                .filter_map(|(id, handle)| {
+                    Some((id, handle.join().ok()?))
+                })
+                .collect()
+        });
+
+        let mut probe_results = Vec::new();
+        for (id, result) in &results {
+            self.history.push(result.clone());
+            probe_results.push(result.clone());
+            let _ = id; // used for ordering context
+        }
+
+        probe_results
     }
 
     #[must_use]
@@ -451,7 +486,25 @@ mod tests {
         let config = ProbeConfig::default();
         let client = Arc::new(MockProbeClient::new());
         let mut service = ProbeService::new(config, client);
-        
+
         assert!(service.probe_site("nonexistent").is_none());
+    }
+
+    #[test]
+    fn probe_all_records_history_for_all_sites() {
+        let config = ProbeConfig::default();
+        let client = Arc::new(MockProbeClient::new());
+        let mut service = ProbeService::new(config, client);
+
+        service.register_site("github", "https://github.com");
+        service.register_site("npmjs", "https://www.npmjs.com");
+        service.register_site("docker", "https://hub.docker.com");
+
+        let results = service.probe_all();
+        assert_eq!(results.len(), 3, "probe_all should return results for all registered sites");
+        assert!(results.iter().all(|r| r.reachable));
+
+        // History should contain records for all probed sites
+        assert_eq!(service.history().len(), 3, "history should record all probed sites");
     }
 }

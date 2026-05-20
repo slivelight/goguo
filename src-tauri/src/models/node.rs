@@ -63,18 +63,18 @@ impl ProxyNode {
         }
     }
 
-    pub fn mark_healthy(&mut self, latency_ms: u64) {
+    pub const fn mark_healthy(&mut self, latency_ms: u64) {
         self.status = NodeStatus::Available;
         self.consecutive_failures = 0;
         self.last_latency_ms = Some(latency_ms);
     }
 
-    pub fn mark_unhealthy(&mut self) {
+    pub const fn mark_unhealthy(&mut self) {
         self.consecutive_failures += 1;
         self.status = NodeStatus::Unhealthy;
     }
 
-    pub fn mark_removed(&mut self) {
+    pub const fn mark_removed(&mut self) {
         self.status = NodeStatus::Removed;
     }
 

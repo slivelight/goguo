@@ -3,7 +3,7 @@
 ## 状态
 
 - **Feature ID**: 003
-- **状态**: hf-test-driven-dev（实现阶段）
+- **状态**: `closed`（2026-05-20 workflow closeout）
 - **关联 OPP**: OPP-001
 - **创建日期**: 2026-05-11
 
@@ -19,7 +19,8 @@
 | design-review | 2026-05-15 | `reviews/design-review-2026-05-15.md` |
 | design-approval | 2026-05-15 | `approvals/design-approval-2026-05-15.md` |
 | hf-tasks | 2026-05-18 | `tasks.md` |
-| hf-test-driven-dev | 进行中 | — |
+| hf-test-driven-dev | 2026-05-20 | 11/11 任务完成，206 测试全绿，clippy 零警告 |
+| hf-finalize | 2026-05-20 | `closeout.md` |
 
 ## 相关 ADR
 
@@ -32,13 +33,18 @@
 |------|------|
 | `spec.md` | 已确认 |
 | `design.md` | 已确认 |
-| `tasks.md` | 草稿 |
-| `progress.md` | 活跃 |
+| `tasks.md` | 已确认 |
+| `progress.md` | closed |
+| `closeout.md` | 已完成 |
 
-## 当前 active task
+## Closeout Type
 
-- T1.1（SiteDefinition 数据模型 + Store）
-- 并行候选：T3.1, T4.1（F001 前置已满足）
+- `workflow-closeout`（全部任务完成，无剩余 approved tasks）
+
+## Linked Long-Term Assets
+
+- `docs/architecture.md`（风险表已同步）
+- `CHANGELOG.md`（F003 条目已写入）
 
 ## 上游输入
 

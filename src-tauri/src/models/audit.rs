@@ -11,6 +11,10 @@ pub enum AuditAction {
     ProxyGuardRecovery,
     RuleApply,
     ConfigChange,
+    SiteAdd,
+    SiteRemove,
+    RuleOverride,
+    NodeSwitch,
 }
 
 /// Result of an audited action.
@@ -57,6 +61,10 @@ mod tests {
             AuditAction::ProxyGuardRecovery,
             AuditAction::RuleApply,
             AuditAction::ConfigChange,
+            AuditAction::SiteAdd,
+            AuditAction::SiteRemove,
+            AuditAction::RuleOverride,
+            AuditAction::NodeSwitch,
         ];
         for a in &actions {
             let json = serde_json::to_string(a).expect("serialize");

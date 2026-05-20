@@ -31,6 +31,68 @@ impl std::fmt::Display for MihomoError {
     }
 }
 
+/// Trait for mihomo config reload operations, enabling dependency injection.
+pub trait MihomoReloader: Send + Sync {
+    /// Reload mihomo configuration from the given path.
+    ///
+    /// # Errors
+    ///
+    /// Returns `MihomoError` if the reload fails.
+    fn reload_config(&self, config_path: &str) -> Result<(), MihomoError>;
+}
+
+impl MihomoReloader for MihomoManager {
+    fn reload_config(&self, config_path: &str) -> Result<(), MihomoError> {
+        self.reload_config(config_path)
+    }
+}
+
+/// Mock reloader for testing.
+pub struct MockMihomoReloader {
+    called: std::sync::Mutex<bool>,
+    last_path: std::sync::Mutex<Option<String>>,
+}
+
+impl MockMihomoReloader {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            called: std::sync::Mutex::new(false),
+            last_path: std::sync::Mutex::new(None),
+        }
+    }
+
+    #[must_use]
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned.
+    pub fn was_called(&self) -> bool {
+        *self.called.lock().unwrap()
+    }
+
+    #[must_use]
+    /// # Panics
+    ///
+    /// Panics if the internal mutex is poisoned.
+    pub fn last_config_path(&self) -> Option<String> {
+        self.last_path.lock().unwrap().clone()
+    }
+}
+
+impl Default for MockMihomoReloader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MihomoReloader for MockMihomoReloader {
+    fn reload_config(&self, config_path: &str) -> Result<(), MihomoError> {
+        *self.called.lock().unwrap() = true;
+        *self.last_path.lock().unwrap() = Some(config_path.to_string());
+        Ok(())
+    }
+}
+
 impl From<std::io::Error> for MihomoError {
     fn from(e: std::io::Error) -> Self {
         Self::Io(e)
@@ -376,5 +438,16 @@ mod tests {
         // TCP connect will fail since nothing is listening.
         let result = mgr.reload_config("/tmp/test.yaml");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn mock_reloader_tracks_calls() {
+        let mock = MockMihomoReloader::new();
+        assert!(!mock.was_called());
+        assert!(mock.last_config_path().is_none());
+
+        mock.reload_config("/test/rules.yaml").expect("reload");
+        assert!(mock.was_called());
+        assert_eq!(mock.last_config_path(), Some("/test/rules.yaml".to_string()));
     }
 }

@@ -14,7 +14,7 @@ pub struct SubscriptionParser {
 
 impl SubscriptionParser {
     #[must_use]
-    pub fn new(sources_file: PathBuf) -> Self {
+    pub const fn new(sources_file: PathBuf) -> Self {
         Self { sources_file }
     }
 
@@ -113,6 +113,9 @@ impl SubscriptionParser {
         SUPPORTED_PROTOCOLS.contains(&protocol)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the sources file cannot be read or parsed.
     pub fn load_sources(&self) -> io::Result<Vec<SubscriptionSource>> {
         if !self.sources_file.exists() {
             return Ok(vec![]);
@@ -123,6 +126,9 @@ impl SubscriptionParser {
         Ok(sources)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if the sources file cannot be written.
     pub fn save_sources(&self, sources: &[SubscriptionSource]) -> io::Result<()> {
         if let Some(parent) = self.sources_file.parent() {
             fs::create_dir_all(parent)?;
@@ -133,6 +139,9 @@ impl SubscriptionParser {
         Ok(())
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if sources cannot be loaded or saved.
     pub fn add_source(&mut self, source: SubscriptionSource) -> io::Result<bool> {
         let mut sources = self.load_sources()?;
         
@@ -145,6 +154,9 @@ impl SubscriptionParser {
         Ok(true)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error if sources cannot be loaded or saved.
     pub fn remove_source(&mut self, url: &str) -> io::Result<bool> {
         let mut sources = self.load_sources()?;
         
