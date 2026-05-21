@@ -1,8 +1,8 @@
 # Feature 004 Progress
 
 - **Feature**: 004-user-interaction
-- **Current Stage**: hf-test-driven-dev
-- **Next Action**: T2.1a（核心 Zustand Store）
+- **Current Stage**: closed
+- **Next Action**: null
 
 ## 阶段进度
 
@@ -12,27 +12,27 @@
 | hf-specify | DONE | 2026-05-12 |
 | hf-design | DONE | 2026-05-15 |
 | hf-tasks | DONE | 2026-05-18 |
-| hf-test-driven-dev | 进行中 | — |
-| hf-finalize | — | — |
+| hf-test-driven-dev | DONE | 2026-05-21 |
+| hf-finalize | DONE | 2026-05-21 |
 
 ## 任务进度
 
-| Task | 目标 | 状态 |
-|------|------|------|
-| T1.1 | 前端结构+路由 | ✅ done |
-| T1.2 | IPC 封装+类型 | ✅ done |
-| T2.1a | 核心 Zustand Store×3 | ✅ done |
-| T2.1b | 扩展 Zustand Store×4 | ✅ done |
-| T3.1 | 共享组件×6 | ✅ done |
-| T4.1 | 仪表盘 | ✅ done |
-| T5.1 | 站点管理 | ✅ done |
-| T6.1 | 规则预览 | ✅ done |
-| T7.1 | 诊断页 | ✅ done |
-| T8.1 | 设置页 | ✅ done |
-| T9.1 | Wizard | ✅ done |
-| T10.1 | 通知+离线 | ✅ done |
-| T10.2 | 冷启动优化 | ✅ done |
-| T10.3 | 跨平台一致性 | ✅ done |
+| Task | 目标 | 状态 | 完成日期 |
+|------|------|------|---------|
+| T1.1 | 前端结构+路由 | ✅ done | 2026-05-21 |
+| T1.2 | IPC 封装+类型 | ✅ done | 2026-05-21 |
+| T2.1a | 核心 Zustand Store×3 | ✅ done | 2026-05-21 |
+| T2.1b | 扩展 Zustand Store×4 | ✅ done | 2026-05-21 |
+| T3.1 | 共享组件×6 | ✅ done | 2026-05-21 |
+| T4.1 | 仪表盘 | ✅ done | 2026-05-21 |
+| T5.1 | 站点管理 | ✅ done | 2026-05-21 |
+| T6.1 | 规则预览 | ✅ done | 2026-05-21 |
+| T7.1 | 诊断页 | ✅ done | 2026-05-21 |
+| T8.1 | 设置页 | ✅ done | 2026-05-21 |
+| T9.1 | Wizard | ✅ done | 2026-05-21 |
+| T10.1 | 通知+离线 | ✅ done | 2026-05-21 |
+| T10.2 | 冷启动优化 | ✅ done | 2026-05-21 |
+| T10.3 | 跨平台一致性 | ✅ done | 2026-05-21 |
 
 **Current Active Task**: 无（全部完成）
 **并行候选**: 无

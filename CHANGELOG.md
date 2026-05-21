@@ -200,3 +200,21 @@
 - 测试覆盖：201 个单元测试 + 5 个集成测试 = 206 个 F003 测试全绿，项目总测试 489 个全绿，clippy 零警告。
 - 引入 trait 抽象（MihomoReloader、AuditLog）实现依赖注入与可测试架构。
 - Feature 003 workflow closeout 完成。
+
+### 新增（2026-05-21）
+
+- 完成 Feature 004 全部 14 个任务（T1.1 前端结构 ~ T10.3 跨平台一致性），含 6 页面、7 Zustand Store、7 共享组件、2 Hooks。
+- 完成业务审视 P0~P8 缺陷修复：
+  - P0：`lib.rs` 注册全部 25 个 Tauri command + 2 个 State，前后端连通。
+  - P1：3 个关键事件发射（baseline:confirmed、service:stopped、baseline:deviation-detected）。
+  - P2：向导站点选择步骤展示域名覆盖信息。
+  - P3：应用后台时推送操作系统通知（Web Notification API）。
+  - P4：NodePoolStatus 扩展节点详情列表，诊断页展示节点表格。
+  - P5：规则应用失败时展示 five_element_prompt 详情面板。
+  - P6：规则预览按站点域名分组展示。
+  - P7：站点添加成功通知包含域名数量。
+  - P8：诊断不可达站点显示可执行建议。
+- 后端变更：`AppState::new()`、14 个 `tauri_*` 命令包装器、`NodeInfo` 结构体、PlatformAdapter Send+Sync 传播。
+- 前端变更：6 页面 UX 增强、notif-store 系统通知集成、rule-store 失败详情保存。
+- 测试覆盖：146 个前端测试（22 文件）全绿，455 个后端测试全绿，clippy 零警告。
+- Feature 004 workflow closeout 完成。
