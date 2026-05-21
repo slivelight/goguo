@@ -64,30 +64,63 @@ ID_PROXY_ENV => {
 - F004 设置页中的"Coordinated"选项（实际上不生效）
 - SC-2 验证标准无法通过
 
+## 协同模式的两种部署方向
+
+协同模式（Coordinated）的核心承诺是：**单实例运行 GoGuo，同时管理 Windows 和 WSL 两侧网络配置，修改后双侧同步生效**。
+
+这要求支持两种部署方向：
+
+| 部署方向 | 宿主 | 远程侧 | mihomo 运行位置 |
+|----------|------|--------|----------------|
+| **Win 单实例** | Windows | WSL（通过 `wsl -e` 桥接） | Windows |
+| **WSL 单实例** | WSL | Windows（通过 `cmd.exe /c` 或 PowerShell 桥接） | WSL |
+
+两种方向都必须实现双侧适配器（WindowsAdapter + WslAdapter），区别仅在于本地适配器直接操作、远程适配器通过桥接操作。
+
 ## 修复方向
 
-### 方案：Windows 单实例 + WslRemoteAdapter
+### 方向 A：Windows 单实例 + WslRemoteAdapter
 
-基于业务分析，**Windows 是 mihomo 和系统代理的自然宿主**。修复方向为：
+**Windows 是 mihomo 和系统代理的自然宿主**：
 
 1. **Windows 上创建 WslRemoteAdapter**：通过 `wsl -e` 和 `\\wsl$\` 路径桥接 WSL 操作
 2. **移除条件编译**：改为运行时动态选择（兑现 ADR-0005）
 3. **实现 wsl-proxy-env 写入**：通过 `wsl -e bash -c "export ..."` 设置 WSL 代理
 4. **网络模式适配**：NAT 时将代理地址设为网关 IP，mirrored 时共享 localhost
 
-### 涉及文件
+### 方向 B：WSL 单实例 + WindowsRemoteAdapter
+
+**WSL 上运行 GoGuo，桥接管理 Windows 侧**：
+
+1. **WSL 上创建 WindowsRemoteAdapter**：通过 `cmd.exe /c` 和 `powershell.exe -Command` 桥接 Windows 操作（注册表、WinHTTP、hosts 文件）
+2. **移除条件编译**：同方向 A，运行时动态选择
+3. **Windows 系统代理写入**：通过 `powershell.exe -Command "Set-ItemProperty ..."` 修改 Windows 注册表
+4. **mihomo 绑定地址适配**：NAT 模式下绑定 `0.0.0.0`，使 Windows 可通过 WSL 网关 IP 访问代理
+5. **Windows hosts 文件写入**：通过 `cmd.exe /c "type ... > C:\Windows\System32\drivers\etc\hosts"` 或 PowerShell 操作
+
+### 两种方向的共性改动
+
+| 文件 | 修改类型 | 说明 |
+|------|---------|------|
+| `src-tauri/src/adapters/mod.rs` | 修改 cfg 策略 | 移除 `#[cfg(target_os)]`，改为运行时动态创建双侧适配器 |
+| `src-tauri/src/managers/deployment_manager.rs` | 重构 | 移除 cfg 条件编译，Coordinated 模式根据宿主平台创建本地+远程适配器 |
+| `src-tauri/src/models/config.rs` | 修改 | mihomo 绑定地址按部署方向和网络模式适配 |
+
+### 方向 A 特有改动
 
 | 文件 | 修改类型 |
 |------|---------|
-| `src-tauri/src/adapters/mod.rs` | 新增 `WslRemoteAdapter` 或修改 cfg 策略 |
-| `src-tauri/src/adapters/wsl_remote.rs` | 新建（Windows→WSL 桥接适配器） |
-| `src-tauri/src/managers/deployment_manager.rs` | 移除 cfg，改为运行时创建双侧适配器 |
+| `src-tauri/src/adapters/wsl_remote.rs` | 新建（Windows→WSL 桥接适配器，通过 `wsl -e` 操作） |
 | `src-tauri/src/adapters/wsl.rs` | 修复 wsl-proxy-env 空操作 |
-| `src-tauri/src/models/config.rs` | mihomo 绑定地址按网络模式适配 |
-| `src-tauri/src/lib.rs` | 协同模式初始化逻辑 |
+
+### 方向 B 特有改动
+
+| 文件 | 修改类型 |
+|------|---------|
+| `src-tauri/src/adapters/windows_remote.rs` | 新建（WSL→Windows 桥接适配器，通过 `cmd.exe` / `powershell.exe` 操作） |
+| `src-tauri/src/adapters/windows.rs` | 适配：将直接 WinAPI 调用改为可从 WSL 桥接调用的形式 |
 
 ### 不在范围内
 
-- WSL 单实例方案（独立 hotfix，优先级低于 Windows 单实例）
 - shell RC 文件自动修改（spec CON-1 明确排除）
 - 包管理器代理配置（spec 明确排除）
