@@ -23,7 +23,7 @@ function SitesPage() {
     if (!siteIdInput.trim()) return;
     const result = await addSite(siteIdInput.trim());
     if (result.success) {
-      addNotification('success', '站点添加成功', `已添加 ${siteIdInput}`);
+      addNotification('success', '站点添加成功', `已添加 ${siteIdInput}，覆盖 ${result.site?.domain_count || 0} 个域名`);
       setSiteIdInput('');
       setShowAddDialog(false);
     } else {

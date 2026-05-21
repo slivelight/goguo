@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { previewRules, applyRules } from '../lib/tauri-ipc';
+import type { FiveElementPrompt } from '../lib/types';
 
 interface RuleState {
   rules: string[];
   previewData: string[];
   isLoading: boolean;
   error: string | null;
+  failurePrompt: FiveElementPrompt | null;
 }
 
 interface RuleActions {
@@ -19,13 +21,14 @@ const initialState: RuleState = {
   previewData: [],
   isLoading: false,
   error: null,
+  failurePrompt: null,
 };
 
 export const useRuleStore = create<RuleState & RuleActions>((set) => ({
   ...initialState,
 
   preview: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, failurePrompt: null });
     try {
       const rules = await previewRules();
       set({
@@ -53,6 +56,7 @@ export const useRuleStore = create<RuleState & RuleActions>((set) => ({
         set({
           isLoading: false,
           error: response.error || 'Failed to apply rules',
+          failurePrompt: response.five_element_prompt ?? null,
         });
       }
     } catch (err) {

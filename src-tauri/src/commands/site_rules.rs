@@ -56,10 +56,20 @@ pub struct ReachabilityResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+pub struct NodeInfo {
+    pub name: String,
+    pub protocol: String,
+    pub status: String,
+    pub latency_ms: Option<u64>,
+    pub address: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct NodePoolStatus {
     pub total_nodes: usize,
     pub available_nodes: usize,
     pub current_node: Option<String>,
+    pub nodes: Vec<NodeInfo>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -260,10 +270,22 @@ pub fn get_diagnosis(
 #[allow(clippy::needless_pass_by_value)]
 pub fn get_node_pool_status(state: tauri::State<'_, SiteRulesState>) -> NodePoolStatus {
     let pool = state.node_pool.lock().expect("lock");
+    let nodes: Vec<NodeInfo> = pool
+        .nodes()
+        .iter()
+        .map(|n| NodeInfo {
+            name: n.name.clone(),
+            protocol: format!("{:?}", n.protocol).to_lowercase(),
+            status: format!("{:?}", n.status).to_lowercase(),
+            latency_ms: n.last_latency_ms,
+            address: n.address.clone(),
+        })
+        .collect();
     NodePoolStatus {
         total_nodes: pool.node_count(),
         available_nodes: pool.available_count(),
         current_node: pool.current_node().map(|n| n.name.clone()),
+        nodes,
     }
 }
 
@@ -379,9 +401,40 @@ mod tests {
             total_nodes: 0,
             available_nodes: 0,
             current_node: None,
+            nodes: vec![],
         };
         assert_eq!(status.total_nodes, 0);
         assert!(status.current_node.is_none());
+        assert!(status.nodes.is_empty());
+    }
+
+    #[test]
+    fn node_pool_status_includes_node_details() {
+        let status = NodePoolStatus {
+            total_nodes: 2,
+            available_nodes: 1,
+            current_node: Some("node-1".to_string()),
+            nodes: vec![
+                NodeInfo {
+                    name: "node-1".to_string(),
+                    protocol: "vless".to_string(),
+                    status: "available".to_string(),
+                    latency_ms: Some(120),
+                    address: "1.2.3.4:443".to_string(),
+                },
+                NodeInfo {
+                    name: "node-2".to_string(),
+                    protocol: "vmess".to_string(),
+                    status: "unhealthy".to_string(),
+                    latency_ms: None,
+                    address: "5.6.7.8:443".to_string(),
+                },
+            ],
+        };
+        assert_eq!(status.nodes.len(), 2);
+        assert_eq!(status.nodes[0].protocol, "vless");
+        assert_eq!(status.nodes[1].status, "unhealthy");
+        assert_eq!(status.current_node.as_deref(), Some("node-1"));
     }
 
     #[test]

@@ -25,6 +25,7 @@ const initialState: DiagState = {
     total_nodes: 0,
     available_nodes: 0,
     current_node: undefined,
+    nodes: [],
   },
   auditLog: {
     total_count: 0,

@@ -28,7 +28,7 @@ use goguo_lib::storage::baseline_storage::BaselineStorage;
 /// Create a `BaselineManager` backed by a temp directory and the given adapters.
 fn setup_baseline_with_adapters(
     dir: &std::path::Path,
-    adapters: Vec<Box<dyn PlatformAdapter>>,
+    adapters: Vec<Box<dyn PlatformAdapter + Send + Sync>>,
 ) -> BaselineManager {
     let storage = BaselineStorage::new(dir.join("baseline"));
     BaselineManager::new(adapters, storage, dir.to_path_buf())
@@ -49,7 +49,7 @@ fn wsl_adapter_full_lifecycle() {
     let dir = tempfile::TempDir::new().expect("temp dir");
 
     // Step 1: Create WslAdapter with real SystemShellExecutor.
-    let wsl_adapter: Box<dyn PlatformAdapter> =
+    let wsl_adapter: Box<dyn PlatformAdapter + Send + Sync> =
         Box::new(WslAdapter::new(SystemShellExecutor));
     assert_eq!(wsl_adapter.platform(), Platform::Wsl);
 
@@ -95,7 +95,7 @@ fn linux_adapter_full_lifecycle() {
     let dir = tempfile::TempDir::new().expect("temp dir");
 
     // Step 1: Create LinuxAdapter with real SystemShellExecutor.
-    let linux_adapter: Box<dyn PlatformAdapter> =
+    let linux_adapter: Box<dyn PlatformAdapter + Send + Sync> =
         Box::new(LinuxAdapter::new(SystemShellExecutor));
     assert_eq!(linux_adapter.platform(), Platform::Linux);
 
@@ -139,9 +139,9 @@ fn dual_adapter_coordinated_mode() {
     let dir = tempfile::TempDir::new().expect("temp dir");
 
     // Create both WslAdapter and LinuxAdapter.
-    let wsl: Box<dyn PlatformAdapter> =
+    let wsl: Box<dyn PlatformAdapter + Send + Sync> =
         Box::new(WslAdapter::new(SystemShellExecutor));
-    let linux: Box<dyn PlatformAdapter> =
+    let linux: Box<dyn PlatformAdapter + Send + Sync> =
         Box::new(LinuxAdapter::new(SystemShellExecutor));
 
     assert_eq!(wsl.platform(), Platform::Wsl);

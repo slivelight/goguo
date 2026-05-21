@@ -59,6 +59,17 @@ export const useNotifStore = create<NotifState & NotifActions>((set, get) => ({
       const unreadCount = notifications.filter((n) => !n.read).length;
       return { notifications, unreadCount };
     });
+
+    // System notification for background app (error/warning only)
+    if (document.hidden && (type === 'error' || type === 'warning')) {
+      try {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification(title, { body: message });
+        }
+      } catch {
+        // Notification API unavailable — skip silently
+      }
+    }
   },
 
   markAsRead: (id: string) => {

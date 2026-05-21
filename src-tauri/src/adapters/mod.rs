@@ -27,7 +27,7 @@ pub struct StateItemDefinition {
 ///
 /// Each adapter targets one platform (Windows, WSL, Linux) and knows how to
 /// read and optionally write specific network configuration state items.
-pub trait PlatformAdapter {
+pub trait PlatformAdapter: Send + Sync {
     /// Returns the target platform for this adapter.
     fn platform(&self) -> Platform;
 

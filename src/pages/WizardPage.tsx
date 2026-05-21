@@ -37,10 +37,10 @@ function WizardPage() {
   ];
 
   const siteOptions = [
-    { id: 'github', label: 'GitHub', desc: '开发者必备' },
-    { id: 'npm', label: 'npm', desc: 'Node.js 包管理' },
-    { id: 'docker', label: 'Docker', desc: '容器平台' },
-    { id: 'claude', label: 'Claude', desc: 'AI 助手' },
+    { id: 'github', label: 'GitHub', desc: '开发者必备', domainCount: 8 },
+    { id: 'npm', label: 'npm', desc: 'Node.js 包管理', domainCount: 3 },
+    { id: 'docker', label: 'Docker', desc: '容器平台', domainCount: 4 },
+    { id: 'claude', label: 'Claude', desc: 'AI 助手', domainCount: 2 },
   ];
 
   const handleStepAction = async () => {
@@ -246,12 +246,17 @@ function WizardPage() {
                   <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                     {site.desc}
                   </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: '4px' }}>
+                    覆盖 {site.domainCount} 个域名
+                  </div>
                 </div>
               ))}
             </div>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginTop: '12px' }}>
-              已选择: {selectedSites.length} 个站点
-            </p>
+            {selectedSites.length > 0 && (
+              <p style={{ color: 'var(--color-text-secondary)', fontSize: '12px', marginTop: '12px' }}>
+                已选择 {selectedSites.length} 个站点，共覆盖 {siteOptions.filter((s) => selectedSites.includes(s.id)).reduce((sum, s) => sum + s.domainCount, 0)} 个域名
+              </p>
+            )}
           </div>
         )}
 

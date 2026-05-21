@@ -135,7 +135,7 @@ impl<E: ShellExecutor> LinuxAdapter<E> {
 
 #[allow(clippy::similar_names)] // http_proxy/https_proxy are domain-standard names
 #[allow(private_bounds)] // ShellExecutor is pub(crate) by design; adapter is re-exported publicly
-impl<E: ShellExecutor> PlatformAdapter for LinuxAdapter<E> {
+impl<E: ShellExecutor + Send + Sync> PlatformAdapter for LinuxAdapter<E> {
     fn platform(&self) -> Platform {
         Platform::Linux
     }

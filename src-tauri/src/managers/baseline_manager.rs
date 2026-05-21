@@ -36,7 +36,7 @@ pub struct StateSummary {
 /// Manages the baseline snapshot lifecycle: collect, confirm, compare, restore.
 #[allow(dead_code)] // audit_dir used by T4.2/T4.3/T9.1
 pub struct BaselineManager {
-    adapters: Vec<Box<dyn PlatformAdapter>>,
+    adapters: Vec<Box<dyn PlatformAdapter + Send + Sync>>,
     storage: BaselineStorage,
     pub(crate) audit_dir: PathBuf,
 }
@@ -44,7 +44,7 @@ pub struct BaselineManager {
 impl BaselineManager {
     #[must_use]
     pub fn new(
-        adapters: Vec<Box<dyn PlatformAdapter>>,
+        adapters: Vec<Box<dyn PlatformAdapter + Send + Sync>>,
         storage: BaselineStorage,
         audit_dir: PathBuf,
     ) -> Self {
@@ -400,7 +400,7 @@ mod tests {
     }
 
     fn setup_manager(
-        adapters: Vec<Box<dyn PlatformAdapter>>,
+        adapters: Vec<Box<dyn PlatformAdapter + Send + Sync>>,
     ) -> (TempDir, BaselineManager) {
         let dir = TempDir::new().expect("temp dir");
         let storage = BaselineStorage::new(dir.path().join("baseline"));
@@ -443,7 +443,7 @@ mod tests {
             make_item("wsl-env", Platform::Wsl, StateItemCategory::Restorable),
             make_item("wsl-reach", Platform::Wsl, StateItemCategory::Detectable),
         ];
-        let adapters: Vec<Box<dyn PlatformAdapter>> = vec![
+        let adapters: Vec<Box<dyn PlatformAdapter + Send + Sync>> = vec![
             Box::new(MockAdapter::with_items(Platform::Windows, win_items)),
             Box::new(MockAdapter::with_items(Platform::Wsl, wsl_items)),
         ];

@@ -1,7 +1,14 @@
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
+use crate::managers::config_manager::ConfigManager;
 use crate::models::audit::AuditAction;
+use crate::models::config::AppConfig;
 use crate::models::recovery::RecoveryStatus;
+use crate::storage::baseline_storage::BaselineStorage;
+
+#[cfg(target_os = "linux")]
+use crate::adapters::linux_base::SystemShellExecutor;
 
 // ── Response DTOs ──────────────────────────────────────────────────────────
 
@@ -325,6 +332,7 @@ use crate::managers::baseline_manager::{BaselineManager, ComparisonResult};
 use crate::managers::mihomo_manager::MihomoManager;
 use crate::services::audit_logger::AuditLogger;
 use crate::services::proxy_guard::ProxyGuard;
+use tauri::Emitter;
 
 /// Shared application state injected into Tauri commands via `tauri::State`.
 pub struct AppState {
@@ -335,10 +343,61 @@ pub struct AppState {
     pub deployment_manager: Mutex<DeploymentManager>,
 }
 
+impl AppState {
+    /// Create a new `AppState` with all managers initialised from `data_dir`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error if the config or audit directories cannot be created.
+    pub fn new(data_dir: &Path) -> std::io::Result<Self> {
+        let storage = BaselineStorage::new(data_dir.join("baseline"));
+
+        #[cfg(target_os = "linux")]
+        let adapters: Vec<Box<dyn crate::adapters::PlatformAdapter + Send + Sync>> = vec![
+            Box::new(
+                crate::adapters::linux::LinuxAdapter::new(SystemShellExecutor),
+            ),
+            Box::new(crate::adapters::wsl::WslAdapter::new(SystemShellExecutor)),
+        ];
+        #[cfg(target_os = "windows")]
+        let adapters: Vec<Box<dyn crate::adapters::PlatformAdapter + Send + Sync>> = vec![
+            Box::new(crate::adapters::windows::WindowsAdapter::new()),
+        ];
+
+        let baseline_manager = Mutex::new(BaselineManager::new(
+            adapters,
+            storage,
+            data_dir.join("audit"),
+        ));
+
+        let config_manager = ConfigManager::new(data_dir.join("config"))?;
+        let deployment_manager = Mutex::new(DeploymentManager::new(
+            config_manager,
+            data_dir.to_path_buf(),
+        ));
+
+        let app_config = AppConfig::default_for(data_dir.to_path_buf());
+        let mihomo_manager = Mutex::new(MihomoManager::new(app_config.mihomo));
+        let proxy_guard = Mutex::new(ProxyGuard::new(app_config.proxy_guard));
+
+        let audit_logger = Mutex::new(AuditLogger::new(data_dir.join("audit"))?);
+
+        Ok(Self {
+            baseline_manager,
+            mihomo_manager,
+            proxy_guard,
+            audit_logger,
+            deployment_manager,
+        })
+    }
+}
+
 /// Error type returned by all Tauri commands.
 fn command_error(context: &str, e: impl std::fmt::Display) -> String {
     format!("{context}: {e}")
 }
+
+// ── Inner helpers (original signatures, used by tests) ──────────────────────
 
 /// Start the initial network assessment.
 ///
@@ -580,8 +639,6 @@ pub fn get_audit_log(
     })
 }
 
-// ── Deployment Commands ────────────────────────────────────────────────────
-
 /// Detect the appropriate deployment mode for the current platform.
 ///
 /// # Errors
@@ -678,6 +735,233 @@ pub fn get_network_mode(depl_mgr: &DeploymentManager) -> Result<NetworkModeRespo
         mode: network_mode_to_string(&mode),
         proxy_strategy: determine_strategy(&mode),
     })
+}
+
+// ── Tauri Command Wrappers ─────────────────────────────────────────────────
+//
+// Thin wrappers that extract managers from AppState and delegate to the
+// inner helper functions above. Tests call the inner functions directly.
+
+/// Tauri command: start the initial network assessment.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::double_must_use
+)]
+pub fn tauri_start_initial_assessment(state: tauri::State<'_, AppState>) -> Result<AssessmentResponse, String> {
+    let mgr = state.baseline_manager.lock().expect("lock");
+    start_initial_assessment(&mgr)
+}
+
+/// Tauri command: get state summary.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::double_must_use
+)]
+pub fn tauri_get_state_summary(state: tauri::State<'_, AppState>) -> Result<StateSummaryResponse, String> {
+    let mgr = state.baseline_manager.lock().expect("lock");
+    get_state_summary(&mgr)
+}
+
+/// Tauri command: trigger readjustment.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::double_must_use
+)]
+pub fn tauri_trigger_readjustment(state: tauri::State<'_, AppState>) -> Result<AssessmentResponse, String> {
+    let mgr = state.baseline_manager.lock().expect("lock");
+    trigger_readjustment(&mgr)
+}
+
+/// Tauri command: confirm baseline (emits `baseline:confirmed` event).
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_confirm_baseline(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<AssessmentResponse, String> {
+    let mgr = state.baseline_manager.lock().expect("lock");
+    let result = confirm_baseline(&mgr)?;
+    drop(mgr);
+    let _ = app.emit(
+        "baseline:confirmed",
+        BaselineConfirmedPayload {
+            version: result.version,
+            item_count: result.item_count,
+        },
+    );
+    Ok(result)
+}
+
+/// Tauri command: get baseline status (emits `baseline:deviation-detected` when deviations found).
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_get_baseline_status(state: tauri::State<'_, AppState>, app: tauri::AppHandle) -> Result<BaselineStatusResponse, String> {
+    let mgr = state.baseline_manager.lock().expect("lock");
+    let result = get_baseline_status(&mgr)?;
+    drop(mgr);
+    if result.has_baseline {
+        let deviated_items: Vec<String> = result
+            .items
+            .iter()
+            .filter(|i| i.result == ComparisonResultDto::Deviated)
+            .map(|i| i.state_item_id.clone())
+            .collect();
+        if !deviated_items.is_empty() {
+            let _ = app.emit(
+                "baseline:deviation-detected",
+                BaselineDeviationPayload { deviated_items },
+            );
+        }
+    }
+    Ok(result)
+}
+
+/// Tauri command: stop service (emits `service:stopped` event).
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_stop_service(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<ServiceStoppedPayload, String> {
+    let mut mihomo = state.mihomo_manager.lock().expect("lock");
+    let baseline_mgr = state.baseline_manager.lock().expect("lock");
+    let result = stop_service(&mut mihomo, &baseline_mgr)?;
+    drop(mihomo);
+    drop(baseline_mgr);
+    let _ = app.emit("service:stopped", &result);
+    Ok(result)
+}
+
+/// Tauri command: get service status.
+#[tauri::command(rename_all = "snake_case")]
+#[must_use]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc
+)]
+pub fn tauri_get_service_status(
+    state: tauri::State<'_, AppState>,
+) -> ServiceStatusResponse {
+    let mut mihomo = state.mihomo_manager.lock().expect("lock");
+    let guard = state.proxy_guard.lock().expect("lock");
+    get_service_status(&mut mihomo, &guard)
+}
+
+/// Tauri command: get recovery progress.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_get_recovery_progress(
+    state: tauri::State<'_, AppState>,
+) -> Result<RecoveryProgressResponse, String> {
+    let baseline_mgr = state.baseline_manager.lock().expect("lock");
+    get_recovery_progress(&baseline_mgr)
+}
+
+/// Tauri command: get audit log.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_get_audit_log(
+    params: Option<AuditLogParams>,
+    state: tauri::State<'_, AppState>,
+) -> Result<AuditLogResponse, String> {
+    let logger = state.audit_logger.lock().expect("lock");
+    let params = params.unwrap_or_default();
+    get_audit_log(&logger, &params)
+}
+
+/// Tauri command: detect deployment mode.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_detect_deployment_mode(
+    state: tauri::State<'_, AppState>,
+) -> Result<DeploymentModeResponse, String> {
+    let depl_mgr = state.deployment_manager.lock().expect("lock");
+    detect_deployment_mode(&depl_mgr)
+}
+
+/// Tauri command: get deployment mode.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_get_deployment_mode(
+    state: tauri::State<'_, AppState>,
+) -> Result<DeploymentModeResponse, String> {
+    let depl_mgr = state.deployment_manager.lock().expect("lock");
+    get_deployment_mode(&depl_mgr)
+}
+
+/// Tauri command: set deployment mode.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_set_deployment_mode(
+    mode: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<DeploymentModeResponse, String> {
+    let depl_mgr = state.deployment_manager.lock().expect("lock");
+    set_deployment_mode(&depl_mgr, &mode)
+}
+
+/// Tauri command: get WSL status (Linux only).
+#[cfg(target_os = "linux")]
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_get_wsl_status(state: tauri::State<'_, AppState>) -> Result<WslStatusResponse, String> {
+    let depl_mgr = state.deployment_manager.lock().expect("lock");
+    get_wsl_status(&depl_mgr)
+}
+
+/// Tauri command: get network mode (Linux only).
+#[cfg(target_os = "linux")]
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc
+)]
+pub fn tauri_get_network_mode(state: tauri::State<'_, AppState>) -> Result<NetworkModeResponse, String> {
+    let depl_mgr = state.deployment_manager.lock().expect("lock");
+    get_network_mode(&depl_mgr)
 }
 
 #[cfg(test)]

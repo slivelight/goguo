@@ -178,7 +178,7 @@ impl<E: ShellExecutor> WslAdapter<E> {
 }
 
 #[allow(private_bounds)] // ShellExecutor is pub(crate) by design
-impl<E: ShellExecutor> PlatformAdapter for WslAdapter<E> {
+impl<E: ShellExecutor + Send + Sync> PlatformAdapter for WslAdapter<E> {
     fn platform(&self) -> Platform {
         Platform::Wsl
     }

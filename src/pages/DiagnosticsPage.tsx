@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDiagStore } from '../stores/diag-store';
 import { useNotifStore } from '../stores/notif-store';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -14,6 +15,7 @@ function DiagnosticsPage() {
     diagnoseSite,
     isLoading 
   } = useDiagStore();
+  const navigate = useNavigate();
   const { addNotification } = useNotifStore();
 
   useEffect(() => {
@@ -58,6 +60,63 @@ function DiagnosticsPage() {
         <button className="btn btn-secondary" onClick={fetchNodePool}>
           刷新节点池
         </button>
+        {nodePool.nodes.length > 0 && (
+          <div style={{ marginTop: '12px', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--color-border)' }}>
+                  <th style={{ textAlign: 'left', padding: '8px', color: 'var(--color-text-secondary)' }}>名称</th>
+                  <th style={{ textAlign: 'left', padding: '8px', color: 'var(--color-text-secondary)' }}>协议</th>
+                  <th style={{ textAlign: 'left', padding: '8px', color: 'var(--color-text-secondary)' }}>状态</th>
+                  <th style={{ textAlign: 'left', padding: '8px', color: 'var(--color-text-secondary)' }}>延迟</th>
+                  <th style={{ textAlign: 'left', padding: '8px', color: 'var(--color-text-secondary)' }}>地址</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nodePool.nodes.map((node) => {
+                  const isCurrent = nodePool.current_node === node.name;
+                  const statusMap: Record<string, 'success' | 'error' | 'stopped'> = {
+                    available: 'success',
+                    unhealthy: 'error',
+                    removed: 'stopped',
+                  };
+                  return (
+                    <tr
+                      key={node.name}
+                      style={{
+                        backgroundColor: isCurrent ? 'var(--color-primary-bg, rgba(59,130,246,0.08))' : 'transparent',
+                        borderBottom: '1px solid var(--color-border)',
+                      }}
+                    >
+                      <td style={{ padding: '8px', fontWeight: isCurrent ? '600' : '400' }}>
+                        {node.name}
+                        {isCurrent && (
+                          <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--color-primary, #3b82f6)' }}>
+                            (当前)
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '8px' }}>
+                        <span className="status-badge running" style={{ fontSize: '12px' }}>
+                          {node.protocol}
+                        </span>
+                      </td>
+                      <td style={{ padding: '8px' }}>
+                        <StatusBadge status={statusMap[node.status] ?? 'stopped'} />
+                      </td>
+                      <td style={{ padding: '8px' }}>
+                        {node.latency_ms != null ? `${node.latency_ms}ms` : '—'}
+                      </td>
+                      <td style={{ padding: '8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                        {node.address}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -80,14 +139,40 @@ function DiagnosticsPage() {
                     label={r.reachable ? `${r.response_time_ms || 0}ms` : '不可达'}
                   />
                 </div>
-                <button 
-                  className="btn btn-secondary" 
+                <button
+                  className="btn btn-secondary"
                   style={{ fontSize: '12px', padding: '4px 8px', marginTop: '8px' }}
                   onClick={() => handleDiagnoseSite(r.site_id)}
                   disabled={isLoading}
                 >
                   重新诊断
                 </button>
+                {(!r.reachable || (r.response_time_ms ?? 0) > 2000) && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '6px 8px',
+                    background: 'var(--color-bg-secondary, #f5f5f5)',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    color: 'var(--color-text-secondary)'
+                  }}>
+                    {r.reachable === false && (
+                      <>
+                        <div>建议操作：重新诊断 或 检查节点池状态</div>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ fontSize: '11px', padding: '2px 6px', marginTop: '4px' }}
+                          onClick={() => navigate('/settings')}
+                        >
+                          前往设置
+                        </button>
+                      </>
+                    )}
+                    {r.reachable && (r.response_time_ms ?? 0) > 2000 && (
+                      <div>响应较慢（{r.response_time_ms}ms），建议切换节点</div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

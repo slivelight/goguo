@@ -128,10 +128,19 @@ export interface ReachabilityResponse {
   sites: SiteReachability[];
 }
 
+export interface NodeInfo {
+  name: string;
+  protocol: string;
+  status: string;
+  latency_ms?: number;
+  address: string;
+}
+
 export interface NodePoolStatus {
   total_nodes: number;
   available_nodes: number;
   current_node?: string;
+  nodes: NodeInfo[];
 }
 
 export interface SubscriptionResponse {
