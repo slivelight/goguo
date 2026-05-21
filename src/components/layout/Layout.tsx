@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import StatusBar from './StatusBar';
+import OfflineIndicator from '../shared/OfflineIndicator';
 
 function Layout() {
   return (
@@ -14,6 +15,7 @@ function Layout() {
         </div>
         <StatusBar />
       </div>
+      <OfflineIndicator />
     </div>
   );
 }
