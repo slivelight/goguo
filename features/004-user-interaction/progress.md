@@ -29,12 +29,12 @@
 | T6.1 | 规则预览 | ✅ done |
 | T7.1 | 诊断页 | ✅ done |
 | T8.1 | 设置页 | ✅ done |
-| T9.1 | Wizard | ⬜ pending（等 T3.1+T2.1b） |
+| T9.1 | Wizard | ✅ done |
 | T10.1 | 通知+离线 | ⬜ pending（等 T2.1+T3.1） |
 | T10.2 | 冷启动优化 | ⬜ pending（等 T4.1） |
 | T10.3 | 跨平台一致性 | ⬜ pending（等 T4.1+T7.1+T8.1） |
 
-**Current Active Task**: T9.1（Wizard 首次引导）
+**Current Active Task**: T10.1~T10.3（完善任务）
 **并行候选**: 无
 
 ## 测试统计
@@ -61,4 +61,5 @@
 | pages/RulesPage | 6 |
 | pages/DiagnosticsPage | 6 |
 | pages/SettingsPage | 6 |
-| **Feature 004 当前合计** | **128** |
+| pages/WizardPage | 11 |
+| **Feature 004 当前合计** | **142** |

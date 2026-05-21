@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type WizardStep = 
+export type WizardStep = 
   | 'welcome'
   | 'deployment-mode'
   | 'initial-assessment'
