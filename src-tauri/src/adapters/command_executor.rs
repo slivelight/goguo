@@ -292,109 +292,107 @@ impl Default for PowershellBridgeExecutor {
 }
 
 // ---------------------------------------------------------------------------
+// MockCommandExecutor (shared test double)
+// ---------------------------------------------------------------------------
+
+/// Mock executor for testing remote adapters.
+///
+/// Placed at module level (not inside `tests`) so other adapter test modules
+/// can import it: `use crate::adapters::command_executor::MockCommandExecutor;`
+#[cfg(test)]
+pub struct MockCommandExecutor {
+    outputs: HashMap<String, Result<String, String>>,
+    env_vars: HashMap<String, String>,
+    home: Option<PathBuf>,
+    file_contents: HashMap<String, String>,
+}
+
+#[cfg(test)]
+impl MockCommandExecutor {
+    pub fn new() -> Self {
+        Self {
+            outputs: HashMap::new(),
+            env_vars: HashMap::new(),
+            home: None,
+            file_contents: HashMap::new(),
+        }
+    }
+
+    pub fn with_output(mut self, program: &str, args: &[&str], result: Result<String, String>) -> Self {
+        let key = Self::command_key(program, args);
+        self.outputs.insert(key, result);
+        self
+    }
+
+    pub fn with_env_var(mut self, key: &str, value: &str) -> Self {
+        self.env_vars.insert(key.to_string(), value.to_string());
+        self
+    }
+
+    pub fn with_home(mut self, home: PathBuf) -> Self {
+        self.home = Some(home);
+        self
+    }
+
+    pub fn with_file(mut self, path: &str, content: &str) -> Self {
+        self.file_contents.insert(path.to_string(), content.to_string());
+        self
+    }
+
+    fn command_key(program: &str, args: &[&str]) -> String {
+        let mut key = program.to_string();
+        for arg in args {
+            key.push(' ');
+            key.push_str(arg);
+        }
+        key
+    }
+}
+
+#[cfg(test)]
+impl Default for MockCommandExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+impl CommandExecutor for MockCommandExecutor {
+    fn execute(&self, program: &str, args: &[&str]) -> Result<String, String> {
+        let key = Self::command_key(program, args);
+        self.outputs
+            .get(&key)
+            .cloned()
+            .unwrap_or(Err(format!("No mock output for: {key}")))
+    }
+
+    fn env_var(&self, key: &str) -> Option<String> {
+        self.env_vars.get(key).cloned()
+    }
+
+    fn home_dir(&self) -> Option<PathBuf> {
+        self.home.clone()
+    }
+
+    fn read_file(&self, path: &str) -> Result<String, String> {
+        self.file_contents
+            .get(path)
+            .cloned()
+            .ok_or_else(|| format!("No mock file: {path}"))
+    }
+
+    fn write_file(&self, _path: &str, _content: &str) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ----- MockCommandExecutor -----
-
-    /// Mock executor for testing remote adapters.
-    pub struct MockCommandExecutor {
-        outputs: HashMap<String, Result<String, String>>,
-        env_vars: HashMap<String, String>,
-        home: Option<PathBuf>,
-        file_contents: HashMap<String, String>,
-        written_files: Vec<(String, String)>,
-    }
-
-    impl MockCommandExecutor {
-        pub fn new() -> Self {
-            Self {
-                outputs: HashMap::new(),
-                env_vars: HashMap::new(),
-                home: None,
-                file_contents: HashMap::new(),
-                written_files: Vec::new(),
-            }
-        }
-
-        pub fn with_output(mut self, program: &str, args: &[&str], result: Result<String, String>) -> Self {
-            let key = Self::command_key(program, args);
-            self.outputs.insert(key, result);
-            self
-        }
-
-        pub fn with_env_var(mut self, key: &str, value: &str) -> Self {
-            self.env_vars.insert(key.to_string(), value.to_string());
-            self
-        }
-
-        pub fn with_home(mut self, home: PathBuf) -> Self {
-            self.home = Some(home);
-            self
-        }
-
-        pub fn with_file(mut self, path: &str, content: &str) -> Self {
-            self.file_contents.insert(path.to_string(), content.to_string());
-            self
-        }
-
-        pub fn written_files(&self) -> &[(String, String)] {
-            &self.written_files
-        }
-
-        fn command_key(program: &str, args: &[&str]) -> String {
-            let mut key = program.to_string();
-            for arg in args {
-                key.push(' ');
-                key.push_str(arg);
-            }
-            key
-        }
-    }
-
-    impl Default for MockCommandExecutor {
-        fn default() -> Self {
-            Self::new()
-        }
-    }
-
-    impl CommandExecutor for MockCommandExecutor {
-        fn execute(&self, program: &str, args: &[&str]) -> Result<String, String> {
-            let key = Self::command_key(program, args);
-            self.outputs
-                .get(&key)
-                .cloned()
-                .unwrap_or(Err(format!("No mock output for: {key}")))
-        }
-
-        fn env_var(&self, key: &str) -> Option<String> {
-            self.env_vars.get(key).cloned()
-        }
-
-        fn home_dir(&self) -> Option<PathBuf> {
-            self.home.clone()
-        }
-
-        fn read_file(&self, path: &str) -> Result<String, String> {
-            self.file_contents
-                .get(path)
-                .cloned()
-                .ok_or_else(|| format!("No mock file: {path}"))
-        }
-
-        fn write_file(&self, path: &str, content: &str) -> Result<(), String> {
-            // MockCommandExecutor needs interior mutability for write tracking,
-            // but for now we just succeed. Use a RefCell variant if tracking needed.
-            let _ = (path, content);
-            Ok(())
-        }
-    }
-
-    // ----- RED tests -----
 
     #[test]
     fn mock_executor_returns_configured_output() {
@@ -444,8 +442,6 @@ mod tests {
         assert_eq!(executor.execute("echo", &["hello"]).unwrap(), "hello");
     }
 
-    // ----- WslBridgeExecutor unit tests -----
-
     #[test]
     fn wsl_bridge_construction_without_distro() {
         let bridge = WslBridgeExecutor::new();
@@ -471,8 +467,6 @@ mod tests {
         let args = bridge.wsl_args(&["bash"]);
         assert_eq!(args, vec!["-d", "Ubuntu", "-e", "bash"]);
     }
-
-    // ----- PowershellBridgeExecutor unit tests -----
 
     #[test]
     fn powershell_bridge_win_to_wsl_path_c_drive() {

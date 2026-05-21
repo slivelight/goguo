@@ -1,6 +1,7 @@
 use crate::models::baseline::{Platform, StateItem, StateItemCategory};
 
 pub mod command_executor;
+pub mod wsl_remote;
 
 #[cfg(target_os = "windows")]
 pub mod windows;
