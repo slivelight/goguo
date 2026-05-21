@@ -1,8 +1,32 @@
-# F002 Coordinated Mode Gap Analysis
+# v0.1.0 Spec-Design-Implementation 漂移全量审计
 
 - **Date**: 2026-05-21
-- **Type**: hf-hotfix 输入（规格-设计-实现契约断裂）
-- **Severity**: BLOCKER（协同模式完全不可用）
+- **Type**: v0.1.0 全量审计（规格-设计-实现对齐检查）
+- **方法**: 逐一对照 F001~F004 的 spec.md → design.md → tasks.md → progress.md → closeout.md → 实际代码，同时审计 6 个 ADR 合规性
+
+## 审计汇总
+
+| Feature | BLOCKER | HIGH | MEDIUM | LOW | 审计结论 |
+|---------|---------|------|--------|-----|---------|
+| F001 基线恢复 | 0 | 2 | 1 | 1 | 有缺口，需修复 |
+| F002 WSL 支持 | 2 | 0 | 1 | 0 | 严重断裂 |
+| F003 站点规则 | 0 | 0 | 0 | 0 | **无漂移** |
+| F004 用户交互 | 0 | 0 | 0 | 0 | **无漂移** |
+
+### ADR 合规
+
+| ADR | 标题 | 状态 |
+|-----|------|------|
+| ADR-0001 | 记录架构决策 | ✅ 合规 |
+| ADR-0002 | Tauri 框架 | ✅ 合规 |
+| ADR-0003 | mihomo 托管子进程 | ✅ 合规 |
+| ADR-0004 | 文件式 JSON 存储 | ✅ 合规 |
+| ADR-0005 | 跨平台 Platform Adapter | ❌ 严重违规（cfg 条件编译） |
+| ADR-0006 | React + TypeScript | ✅ 合规 |
+
+---
+
+# F002 WSL 支持（原有分析）
 
 ## 问题描述
 
@@ -124,3 +148,70 @@ ID_PROXY_ENV => {
 
 - shell RC 文件自动修改（spec CON-1 明确排除）
 - 包管理器代理配置（spec 明确排除）
+
+---
+
+# F001 基线恢复
+
+## H1-1: 非目标站点可达性验证未实现 (HIGH)
+
+- **承诺**: spec FR-2.4.3-R1 "停止恢复后，必须验证非目标直连站点的可达性不低于 baseline"；SC-5 "非目标直连站点访问成功率不低于 baseline"
+- **实际**: 未找到非目标站点可达性验证代码。设计阶段被 F003 的 B+C 探测方案替代，但 spec 中 SC-5 未标注
+- **影响**: SC-5 无对应测试证据
+- **修复方向**: 在 closeout 中标注 SC-5 被 F003 B+C 方案覆盖
+
+## H1-2: 续跑期间禁止新操作缺 UI 机制 (HIGH)
+
+- **承诺**: spec FR-2.6.2-R2 "续跑过程中不允许启动新的网络修改操作"
+- **实际**: 后端续跑逻辑存在，但 F004 未实现恢复蒙层/UI 阻塞机制
+- **影响**: 续跑期间用户可能在 UI 上切换模式，导致状态竞争
+- **修复方向**: 后端续跑期间加状态锁，或前端加蒙层
+
+## M1-1: ProxyGuard 自动恢复依赖未实现的后台任务 (MEDIUM)
+
+- **承诺**: spec FR-2.5.2-R4 "检测到系统代理指向不可达服务时，必须立即恢复到 baseline 值"
+- **实际**: ProxyGuard 逻辑存在，但缺少定期监控的后台任务调度机制
+- **修复方向**: 实现后端定时任务，或标注依赖前端触发
+
+## L1-1: Tauri Events 未完整发射 (LOW)
+
+- **承诺**: design §4 定义了 recovery:*、service:started、proxy-guard:* 等事件
+- **实际**: 6 个事件定义存在但需后台任务基础设施才能发射（closeout 已记录）
+- **修复方向**: 待后台任务基础设施就绪后补齐
+
+---
+
+# F003 站点规则
+
+**无漂移发现。** spec/design/impl 三层对齐良好。已知限制（Mock 替身、订阅仅 base64）均在 closeout 中正确记录为 future work，不构成 spec 违背。
+
+---
+
+# F004 用户交互
+
+**无漂移发现。** 7 个 Store、6 个页面实现完整。已知限制（6 个事件待后台任务、无 start_service）在 closeout 中正确记录。
+
+---
+
+# ADR-0005 严重违规详情
+
+- **决策**: 采用 Platform Adapter trait 模式，运行时动态选择适配器
+- **排除方案**: `#[cfg(target_os)]` 条件编译 — 理由 "编译时绑定、不可动态切换、协同部署需同时支持两侧"
+- **实际**: 代码中使用 40+ 处条件编译，导致协同模式不可能实现
+- **影响文件**: `adapters/mod.rs`(5)、`deployment_manager.rs`(10)、`baseline_manager.rs`(2)、`commands/baseline.rs`(10)、`services/`(4)、`lib.rs`(2)
+- **根因**: 实现阶段未对照 ADR 验证技术选型，审查链也未捕获（HF 框架三道防线缺失）
+
+---
+
+# 修复 Feature 分配
+
+| Feature | 级别 | 问题 | Authority Source |
+|---------|------|------|-----------------|
+| F101 | BLOCKER | 协同模式不可用（双侧适配器） | F002 spec §FR-2.2.1-R4, ADR-0005 |
+| F102 | BLOCKER | proxy-env 空操作 | F002 spec §FR-2.1.1, F002 design §2.5 |
+| F103 | HIGH | SC-5 非目标站点验证 | F001 spec §FR-2.4.3-R1, SC-5 |
+| F104 | HIGH | 续跑期间 UI 阻塞 | F001 spec §FR-2.6.2-R2 |
+| F105 | MEDIUM | ProxyGuard 后台任务 | F001 spec §FR-2.5.2-R4 |
+| F106 | LOW | Tauri Events 未发射 | F001 design §4 |
+
+> F102 将合并到 F101 中实施（WslRemoteAdapter 的 write_state 自然包含 proxy-env 写入）。
