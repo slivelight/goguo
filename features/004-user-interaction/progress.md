@@ -21,7 +21,7 @@
 |------|------|------|
 | T1.1 | 前端结构+路由 | ✅ done |
 | T1.2 | IPC 封装+类型 | ✅ done |
-| T2.1a | 核心 Zustand Store×3 | ⬜ pending |
+| T2.1a | 核心 Zustand Store×3 | ✅ done |
 | T2.1b | 扩展 Zustand Store×4 | ⬜ pending（等 T2.1a） |
 | T3.1 | 共享组件×6 | ⬜ pending（等 T2.1a） |
 | T4.1 | 仪表盘 | ⬜ pending（等 T3.1） |
@@ -34,8 +34,8 @@
 | T10.2 | 冷启动优化 | ⬜ pending（等 T4.1） |
 | T10.3 | 跨平台一致性 | ⬜ pending（等 T4.1+T7.1+T8.1） |
 
-**Current Active Task**: T2.1a（核心 Zustand Store）
-**并行候选**: 无
+**Current Active Task**: T2.1b 或 T3.1（可并行）
+**并行候选**: T2.1b + T3.1
 
 ## 测试统计
 
@@ -43,4 +43,7 @@
 |------|--------|
 | lib/tauri-ipc | 3 |
 | hooks/use-tauri-event | 2 |
-| **Feature 004 当前合计** | **5** |
+| stores/service-store | 8 |
+| stores/baseline-store | 10 |
+| stores/notif-store | 12 |
+| **Feature 004 当前合计** | **35** |
