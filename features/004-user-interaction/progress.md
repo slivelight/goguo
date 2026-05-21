@@ -24,18 +24,18 @@
 | T2.1a | 核心 Zustand Store×3 | ✅ done |
 | T2.1b | 扩展 Zustand Store×4 | ✅ done |
 | T3.1 | 共享组件×6 | ✅ done |
-| T4.1 | 仪表盘 | ⬜ pending（等 T3.1） |
-| T5.1 | 站点管理 | ⬜ pending（等 T3.1） |
-| T6.1 | 规则预览 | ⬜ pending（等 T3.1） |
-| T7.1 | 诊断页 | ⬜ pending（等 T3.1） |
-| T8.1 | 设置页 | ⬜ pending（等 T3.1） |
+| T4.1 | 仪表盘 | ✅ done |
+| T5.1 | 站点管理 | ✅ done |
+| T6.1 | 规则预览 | ✅ done |
+| T7.1 | 诊断页 | ✅ done |
+| T8.1 | 设置页 | ✅ done |
 | T9.1 | Wizard | ⬜ pending（等 T3.1+T2.1b） |
 | T10.1 | 通知+离线 | ⬜ pending（等 T2.1+T3.1） |
 | T10.2 | 冷启动优化 | ⬜ pending（等 T4.1） |
 | T10.3 | 跨平台一致性 | ⬜ pending（等 T4.1+T7.1+T8.1） |
 
-**Current Active Task**: T4.1~T8.1（可并行）
-**并行候选**: T4.1 + T5.1 + T6.1 + T7.1 + T8.1
+**Current Active Task**: T9.1（Wizard 首次引导）
+**并行候选**: 无
 
 ## 测试统计
 
@@ -56,4 +56,9 @@
 | components/CodeBlock | 4 |
 | components/RecoveryOverlay | 5 |
 | components/RecoveryAckDialog | 6 |
-| **Feature 004 当前合计** | **96** |
+| pages/DashboardPage | 7 |
+| pages/SitesPage | 5 |
+| pages/RulesPage | 6 |
+| pages/DiagnosticsPage | 6 |
+| pages/SettingsPage | 6 |
+| **Feature 004 当前合计** | **128** |
