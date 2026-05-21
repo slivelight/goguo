@@ -344,6 +344,52 @@ hf-increment -> 先影响分析、同步工件，再重入正确主链节点
 - spec 写完就不再维护，进入实现后与代码脱节
 - 把需求、设计、任务写进同一份大文档
 - 在 `hf-test-driven-dev` 里同时切换多个任务
+- "先写代码，最后补测试" 还叫 TDD
+- 用旧测试结果充当当前 `fresh evidence`
+- `auto mode` 下直接跳过 approval record
+- 让 review skill 顺手回修，让实现 skill 顺手决定完整下游链路
+- 把 branch / closeout 的 live runtime 细则同时写进原则文档、shared docs 和 leaf skill，导致层级冲突
+- **实现使用了被 ADR 排除的技术方案，但未先回到 hf-design 修改 ADR**（v0.1.0 复盘教训）
+- **spec 的 Success Criteria 没有对应测试证据就通过 hf-finalize**（v0.1.0 复盘教训）
+
+## v0.1.0 复盘：Spec-Design-Implementation Drift 防线
+
+> 根因分析：`docs/insights/2026-05-21-spec-design-impl-drift-root-cause.md`
+
+F002 协同模式在 spec/design/ADR 三层一致承诺双侧同时管理，但代码实现用了被 ADR 排除的条件编译方案（`#[cfg(target_os)]`），导致协同模式完全不可用。6 道审查门均未捕获。
+
+### 防线 1：hf-tasks-review 增加 T-TRACE 维度
+
+**检查项**：每个任务的验收标准是否可追溯到 spec 的 FR/SC 和 ADR 的具体承诺？
+
+对于 spec 中标记为关键路径的需求（如跨平台协同、核心数据流），任务验收标准**必须包含显式的验证条件**，说明"如何证明这个承诺被兑现"。
+
+reviewer 必须在 tasks-review 中新增检查行：
+
+> **T-TRACE**: 任务验收标准 ↔ spec FR/SC ↔ ADR 承诺 的追溯链是否完整。对于 ADR 中 "Alternatives Considered" 表格里标记为"排除"的方案，任务中是否显式说明了"不采用"而非静默使用。
+
+### 防线 2：hf-finalize 增加 SC-COVERAGE 检查
+
+**检查项**：spec 中每个 Success Criteria (SC-N) 是否有对应的测试证据？
+
+在 hf-finalize 的 evidence matrix 中新增：
+
+> **SC-COVERAGE**: 列出 spec 中所有 SC-N → 测试/命令 的映射表。如果某个 SC 没有测试证据，**不得关闭 feature**。
+
+closeout.md 的 Evidence Matrix 区块必须包含 SC 覆盖映射子表。
+
+### 防线 3：实现节点（hf-test-driven-dev）的 ADR Conformance
+
+此防线在 `architectural-health-during-tdd.md` 中定义（见下文修改）。本文件声明其存在和触发条件。
+
+## 反模式（原）
+
+以下做法会让 `SDD + TDD` skill workflow 很快退化：
+
+- 把所有问题都拉成冗长 spec，导致 review overload
+- spec 写完就不再维护，进入实现后与代码脱节
+- 把需求、设计、任务写进同一份大文档
+- 在 `hf-test-driven-dev` 里同时切换多个任务
 - “先写代码，最后补测试” 还叫 TDD
 - 用旧测试结果充当当前 `fresh evidence`
 - `auto mode` 下直接跳过 approval record

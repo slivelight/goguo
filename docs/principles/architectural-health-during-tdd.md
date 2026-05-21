@@ -120,6 +120,19 @@ HF 引入三档边界：
 | **In-task cleanup** | 仅影响 task 触碰文件/小局部模块的 clean code 改进，如 Extract Method、Rename、Replace Magic Number、Remove Dead Code、Decompose Conditional、消除局部重复 | 在 REFACTOR 步直接做，全绿验证，写入 Refactor Note |
 | **Documented debt** | 识别到的 architectural smell 范围超过 task，但本轮不应/不能在 task 内修复 | 不在 task 内修，在 Refactor Note 中记 debt + 推荐 escalation |
 | **Required escalation** | 涉及修改已批准设计、跨多模块的结构性重构、引入或改变 ADR、改变模块边界或接口契约 | 不在 task 内做。停止当前任务，回到 `hf-workflow-router`，由 router 判断是否进入 `hf-increment` 或回到 `hf-design` |
+| **ADR violation (Hard Gate)** | 实现采用了被 ADR "Alternatives Considered" 表格中标记为"排除"的技术方案 | **必须停止**。回到 `hf-workflow-router`，由 router 判断：要么修改 ADR（回到 hf-design），要么修改实现。不允许静默使用被排除的方案 |
+
+> **v0.1.0 教训**：F002 协同模式使用 `#[cfg(target_os)]` 条件编译，这正是 ADR-0005 明确排除的方案（"排除：条件编译——编译时绑定、不可动态切换、协同部署需同时支持两侧"）。实现者未对照 ADR 验证技术选型，审查链也未捕获。此 Hard Gate 即为补上这道防线。
+
+最大的退化模式是：实现节点把任意架构性变更都"顺手"做了，结果设计文档与代码漂移；或者反过来，因为不敢动而忽略明显 smell。
+
+HF 引入三档边界：
+
+| 档 | 范围 | 处理方式 |
+|---|---|---|
+| **In-task cleanup** | 仅影响 task 触碰文件/小局部模块的 clean code 改进，如 Extract Method、Rename、Replace Magic Number、Remove Dead Code、Decompose Conditional、消除局部重复 | 在 REFACTOR 步直接做，全绿验证，写入 Refactor Note |
+| **Documented debt** | 识别到的 architectural smell 范围超过 task，但本轮不应/不能在 task 内修复 | 不在 task 内修，在 Refactor Note 中记 debt + 推荐 escalation |
+| **Required escalation** | 涉及修改已批准设计、跨多模块的结构性重构、引入或改变 ADR、改变模块边界或接口契约 | 不在 task 内做。停止当前任务，回到 `hf-workflow-router`，由 router 判断是否进入 `hf-increment` 或回到 `hf-design` |
 
 ### 判断 3：Two Hats 必须是 Hard Gate，不只是建议
 
@@ -156,7 +169,7 @@ Refactor Note 必须出现在实现交接块里，原因：
 
 - **Hat Discipline**：本轮是否守住 Two Hats（GREEN 与 REFACTOR 是否在不同步骤内进行；preparatory refactor 是否独立成步）
 - **In-task cleanups**：本轮 task 内完成的 cleanup，按 Fowler refactoring vocabulary 命名（Extract Method / Rename / Replace Magic Number / Remove Dead Code / ...）
-- **Architectural conformance**：与 `hf-design` 中的依赖方向、模块边界、接口契约是否一致；任何偏离需说明
+- **Architectural conformance**：与 `hf-design` 中的依赖方向、模块边界、接口契约是否一致；**是否使用了被 ADR 排除的技术方案**（对照 ADR "Alternatives Considered" 表格）；任何偏离需说明
 - **Documented debt**：识别到但未在本 task 内修复的 architectural smells（带 smell 名 + 影响范围 + 推荐 escalation）
 - **Escalation triggers**：是否触发需 escalate 的边界（跨模块结构性重构、ADR 变更、模块边界变更）；如有，必须显式说明本轮停止并回 router
 
