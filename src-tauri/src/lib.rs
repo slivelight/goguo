@@ -35,6 +35,7 @@ pub fn run() {
             commands::baseline::tauri_stop_service,
             commands::baseline::tauri_get_service_status,
             commands::baseline::tauri_get_recovery_progress,
+            commands::baseline::tauri_get_is_restoring,
             commands::baseline::tauri_get_audit_log,
             commands::baseline::tauri_detect_deployment_mode,
             commands::baseline::tauri_get_deployment_mode,

@@ -52,6 +52,10 @@ export async function getRecoveryProgress(): Promise<RecoveryProgressResponse> {
   return invoke('get_recovery_progress');
 }
 
+export async function getIsRestoring(): Promise<boolean> {
+  return invoke('get_is_restoring');
+}
+
 export async function getAuditLog(params?: AuditLogParams): Promise<AuditLogResponse> {
   return invoke('get_audit_log', { params });
 }

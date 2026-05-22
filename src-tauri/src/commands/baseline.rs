@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
+use crate::managers::baseline_manager::NonTargetVerification;
 use crate::managers::config_manager::ConfigManager;
 use crate::models::audit::AuditAction;
 use crate::models::config::AppConfig;
@@ -221,6 +222,8 @@ pub struct BaselineDeviationPayload {
 pub struct ServiceStoppedPayload {
     pub reason: String,
     pub recovery_triggered: bool,
+    /// Non-target site reachability verification (F103 / SC-5).
+    pub non_target_verification: Option<NonTargetVerification>,
 }
 
 /// Payload for `service:started` event.
@@ -338,6 +341,9 @@ pub struct AppState {
     pub proxy_guard: Mutex<ProxyGuard>,
     pub audit_logger: Mutex<AuditLogger>,
     pub deployment_manager: Mutex<DeploymentManager>,
+    /// Flag indicating a restore/recovery operation is in progress (F104).
+    /// When true, network-modifying commands are blocked.
+    pub is_restoring: std::sync::atomic::AtomicBool,
 }
 
 impl AppState {
@@ -384,6 +390,7 @@ impl AppState {
             proxy_guard,
             audit_logger,
             deployment_manager,
+            is_restoring: std::sync::atomic::AtomicBool::new(false),
         })
     }
 }
@@ -391,6 +398,15 @@ impl AppState {
 /// Error type returned by all Tauri commands.
 fn command_error(context: &str, e: impl std::fmt::Display) -> String {
     format!("{context}: {e}")
+}
+
+/// Check that no restore/recovery operation is in progress.
+/// Returns `Ok(())` if safe to proceed, `Err` if blocked.
+fn check_not_restoring(state: &AppState) -> Result<(), String> {
+    if state.is_restoring.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err("Operation blocked: recovery in progress".to_string());
+    }
+    Ok(())
 }
 
 // ── Inner helpers (original signatures, used by tests) ──────────────────────
@@ -514,10 +530,12 @@ pub fn stop_service(
     let restore_result = baseline_mgr.restore_to_baseline();
 
     let recovery_triggered = restore_result.as_ref().is_ok_and(|r| r.succeeded > 0);
+    let non_target_verification = restore_result.ok().and_then(|r| r.non_target_verification);
 
     Ok(ServiceStoppedPayload {
         reason: "User requested".to_string(),
         recovery_triggered,
+        non_target_verification,
     })
 }
 
@@ -837,11 +855,18 @@ pub fn tauri_stop_service(
     state: tauri::State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<ServiceStoppedPayload, String> {
+    check_not_restoring(&state)?;
+    state.is_restoring.store(true, std::sync::atomic::Ordering::Relaxed);
+
     let mut mihomo = state.mihomo_manager.lock().expect("lock");
     let baseline_mgr = state.baseline_manager.lock().expect("lock");
-    let result = stop_service(&mut mihomo, &baseline_mgr)?;
+    let result = stop_service(&mut mihomo, &baseline_mgr);
     drop(mihomo);
     drop(baseline_mgr);
+
+    state.is_restoring.store(false, std::sync::atomic::Ordering::Relaxed);
+
+    let result = result?;
     let _ = app.emit("service:stopped", &result);
     Ok(result)
 }
@@ -859,6 +884,14 @@ pub fn tauri_get_service_status(
     let mut mihomo = state.mihomo_manager.lock().expect("lock");
     let guard = state.proxy_guard.lock().expect("lock");
     get_service_status(&mut mihomo, &guard)
+}
+
+/// Tauri command: check if a restore/recovery operation is in progress.
+#[tauri::command(rename_all = "snake_case")]
+#[must_use]
+#[allow(clippy::needless_pass_by_value, clippy::missing_panics_doc)]
+pub fn tauri_get_is_restoring(state: tauri::State<'_, AppState>) -> bool {
+    state.is_restoring.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Tauri command: get recovery progress.
@@ -1300,11 +1333,13 @@ mod tests {
         let payload = ServiceStoppedPayload {
             reason: "User requested".to_string(),
             recovery_triggered: true,
+            non_target_verification: None,
         };
         let json = serde_json::to_string(&payload).expect("serialize");
         let back: ServiceStoppedPayload = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(back.reason, "User requested");
         assert!(back.recovery_triggered);
+        assert!(back.non_target_verification.is_none());
     }
 
     #[test]
@@ -1868,5 +1903,52 @@ mod tests {
             "unexpected proxy_strategy: {}",
             resp.proxy_strategy
         );
+    }
+
+    // ----- F104: is_restoring state lock tests -----
+
+    #[test]
+    fn app_state_is_restoring_default_false() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let state = AppState::new(dir.path()).expect("create state");
+        assert!(!state.is_restoring.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
+    #[test]
+    fn is_restoring_set_and_clear() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let state = AppState::new(dir.path()).expect("create state");
+
+        // Simulate: set restoring
+        state.is_restoring.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(state.is_restoring.load(std::sync::atomic::Ordering::Relaxed));
+
+        // Simulate: clear after done
+        state.is_restoring.store(false, std::sync::atomic::Ordering::Relaxed);
+        assert!(!state.is_restoring.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
+    #[test]
+    fn stop_service_blocked_when_restoring() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let state = AppState::new(dir.path()).expect("create state");
+
+        // Simulate restore in progress
+        state.is_restoring.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        // Attempt to stop service should be blocked
+        let result = check_not_restoring(&state);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("recovery in progress"));
+    }
+
+    #[test]
+    fn stop_service_allowed_when_not_restoring() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let state = AppState::new(dir.path()).expect("create state");
+
+        // Not restoring — should be allowed
+        let result = check_not_restoring(&state);
+        assert!(result.is_ok());
     }
 }

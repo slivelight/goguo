@@ -61,7 +61,7 @@ describe('service-store', () => {
 
   it('handleServiceStopped sets mihomoRunning to false', () => {
     useServiceStore.getState().handleServiceStarted({ mihomo_running: true });
-    useServiceStore.getState().handleServiceStopped({ reason: 'manual', recovery_triggered: false });
+    useServiceStore.getState().handleServiceStopped({ reason: 'manual', recovery_triggered: false, non_target_verification: null });
 
     const state = useServiceStore.getState();
     expect(state.mihomoRunning).toBe(false);

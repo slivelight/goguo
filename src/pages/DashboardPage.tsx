@@ -1,21 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useServiceStore, initializeServiceStore } from '../stores/service-store';
 import { useBaselineStore, initializeBaselineStore } from '../stores/baseline-store';
 import { useNotifStore } from '../stores/notif-store';
 import { useDiagStore } from '../stores/diag-store';
+import { useRecoveryStore } from '../stores/recovery-store';
 import StatusBadge from '../components/shared/StatusBadge';
 import NotifBar from '../components/shared/NotifBar';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import RecoveryOverlay from '../components/shared/RecoveryOverlay';
 import { startInitialAssessment, confirmBaseline, triggerReadjustment, stopService } from '../lib/tauri-ipc';
 
 function DashboardPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'restore' | 'stop' | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { mihomoRunning, proxyGuardRestartCount, fetchServiceStatus } = useServiceStore();
   const { hasBaseline, items, getDeviatedCount, getMatchCount, fetchBaselineStatus } = useBaselineStore();
   const { notifications } = useNotifStore();
   const { reachability, fetchReachability } = useDiagStore();
+  const { isRestoring, progress, fetchRecoveryStatus } = useRecoveryStore();
 
   useEffect(() => {
     initializeServiceStore();
@@ -23,14 +27,32 @@ function DashboardPage() {
     fetchServiceStatus();
     fetchBaselineStatus();
     fetchReachability();
+    fetchRecoveryStatus();
   }, []);
 
+  // Poll recovery status when restoring
+  useEffect(() => {
+    if (isRestoring) {
+      pollRef.current = setInterval(() => {
+        fetchRecoveryStatus();
+      }, 1000);
+    } else if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [isRestoring]);
+
   const handleRestoreClick = () => {
+    if (isRestoring) return;
     setConfirmAction('restore');
     setShowConfirmDialog(true);
   };
 
   const handleStopClick = () => {
+    if (isRestoring) return;
     setConfirmAction('stop');
     setShowConfirmDialog(true);
   };
@@ -45,6 +67,7 @@ function DashboardPage() {
     setConfirmAction(null);
     fetchServiceStatus();
     fetchBaselineStatus();
+    fetchRecoveryStatus();
   };
 
   const reachableCount = reachability.filter(r => r.reachable).length;
@@ -52,6 +75,8 @@ function DashboardPage() {
 
   return (
     <div>
+      {isRestoring && progress && <RecoveryOverlay progress={progress} />}
+
       <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '24px' }}>仪表盘</h1>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
@@ -81,7 +106,7 @@ function DashboardPage() {
           </p>
           <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
             {!hasBaseline && (
-              <button className="btn btn-secondary" onClick={async () => {
+              <button className="btn btn-secondary" disabled={isRestoring} onClick={async () => {
                 await startInitialAssessment();
                 fetchBaselineStatus();
               }}>
@@ -89,7 +114,7 @@ function DashboardPage() {
               </button>
             )}
             {!hasBaseline && items.length > 0 && (
-              <button className="btn btn-primary" onClick={async () => {
+              <button className="btn btn-primary" disabled={isRestoring} onClick={async () => {
                 await confirmBaseline();
                 fetchBaselineStatus();
               }}>
@@ -116,11 +141,11 @@ function DashboardPage() {
       <div className="card">
         <div className="card-header">快捷操作</div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-primary" onClick={handleRestoreClick}>
+          <button className="btn btn-primary" onClick={handleRestoreClick} disabled={isRestoring}>
             立即恢复
           </button>
           {mihomoRunning && (
-            <button className="btn btn-danger" onClick={handleStopClick}>
+            <button className="btn btn-danger" onClick={handleStopClick} disabled={isRestoring}>
               停止服务
             </button>
           )}

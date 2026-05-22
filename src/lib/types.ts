@@ -186,9 +186,23 @@ export interface BaselineDeviationPayload {
   deviated_items: string[];
 }
 
+export interface SiteProbeDetail {
+  url: string;
+  reachable: boolean;
+  latency_ms: number | null;
+  error: string | null;
+}
+
+export interface NonTargetVerification {
+  sites_probed: number;
+  sites_reachable: number;
+  details: SiteProbeDetail[];
+}
+
 export interface ServiceStoppedPayload {
   reason: string;
   recovery_triggered: boolean;
+  non_target_verification: NonTargetVerification | null;
 }
 
 export interface ServiceStartedPayload {
