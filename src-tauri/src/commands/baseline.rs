@@ -7,9 +7,6 @@ use crate::models::config::AppConfig;
 use crate::models::recovery::RecoveryStatus;
 use crate::storage::baseline_storage::BaselineStorage;
 
-#[cfg(target_os = "linux")]
-use crate::adapters::linux_base::SystemShellExecutor;
-
 // ── Response DTOs ──────────────────────────────────────────────────────────
 
 /// Response for `start_initial_assessment` and `trigger_readjustment`.
@@ -346,23 +343,26 @@ pub struct AppState {
 impl AppState {
     /// Create a new `AppState` with all managers initialised from `data_dir`.
     ///
+    /// Uses `DeploymentManager` to determine the deployment mode and create
+    /// the appropriate platform adapters. Coordinated mode creates two adapters
+    /// (local + remote bridge) for cross-platform management.
+    ///
     /// # Errors
     ///
     /// Returns an I/O error if the config or audit directories cannot be created.
     pub fn new(data_dir: &Path) -> std::io::Result<Self> {
         let storage = BaselineStorage::new(data_dir.join("baseline"));
 
-        #[cfg(target_os = "linux")]
-        let adapters: Vec<Box<dyn crate::adapters::PlatformAdapter + Send + Sync>> = vec![
-            Box::new(
-                crate::adapters::linux::LinuxAdapter::new(SystemShellExecutor),
-            ),
-            Box::new(crate::adapters::wsl::WslAdapter::new(SystemShellExecutor)),
-        ];
-        #[cfg(target_os = "windows")]
-        let adapters: Vec<Box<dyn crate::adapters::PlatformAdapter + Send + Sync>> = vec![
-            Box::new(crate::adapters::windows::WindowsAdapter::new()),
-        ];
+        // Create DeploymentManager first to determine deployment mode
+        let config_manager = ConfigManager::new(data_dir.join("config"))?;
+        let depl_mgr = DeploymentManager::new(config_manager, data_dir.to_path_buf());
+
+        // Use stored mode, fallback to auto-detected mode
+        let detected = DeploymentManager::detect_deployment_mode();
+        let mode = depl_mgr
+            .get_deployment_mode()
+            .unwrap_or(detected);
+        let adapters = depl_mgr.create_adapters(&mode);
 
         let baseline_manager = Mutex::new(BaselineManager::new(
             adapters,
@@ -370,11 +370,7 @@ impl AppState {
             data_dir.join("audit"),
         ));
 
-        let config_manager = ConfigManager::new(data_dir.join("config"))?;
-        let deployment_manager = Mutex::new(DeploymentManager::new(
-            config_manager,
-            data_dir.to_path_buf(),
-        ));
+        let deployment_manager = Mutex::new(depl_mgr);
 
         let app_config = AppConfig::default_for(data_dir.to_path_buf());
         let mihomo_manager = Mutex::new(MihomoManager::new(app_config.mihomo));

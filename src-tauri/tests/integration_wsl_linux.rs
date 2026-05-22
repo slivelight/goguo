@@ -225,18 +225,21 @@ fn deployment_manager_create_adapters_per_mode() {
     assert_eq!(linux_adapters.len(), 1);
     assert_eq!(linux_adapters[0].platform(), Platform::Linux);
 
-    // WindowsOnly -> 0 adapters on Linux (WindowsAdapter not compiled).
+    // WindowsOnly -> 1 adapter on Linux (WindowsRemoteAdapter via powershell.exe).
     let win_adapters = depl_mgr.create_adapters(
         &goguo_lib::models::config::DeploymentMode::WindowsOnly,
     );
-    assert_eq!(win_adapters.len(), 0);
+    assert_eq!(win_adapters.len(), 1);
+    assert_eq!(win_adapters[0].platform(), Platform::Windows);
 
-    // Coordinated -> 1 adapter on Linux (WslAdapter only, WindowsAdapter not available).
+    // Coordinated -> 2 adapters on WSL (WslAdapter + WindowsRemoteAdapter).
     let coord_adapters = depl_mgr.create_adapters(
         &goguo_lib::models::config::DeploymentMode::Coordinated,
     );
-    assert_eq!(coord_adapters.len(), 1);
-    assert_eq!(coord_adapters[0].platform(), Platform::Wsl);
+    assert_eq!(coord_adapters.len(), 2);
+    let coord_platforms: Vec<_> = coord_adapters.iter().map(|a| a.platform()).collect();
+    assert!(coord_platforms.contains(&Platform::Wsl));
+    assert!(coord_platforms.contains(&Platform::Windows));
 }
 
 // ── Scenario 5: WslNetworkStrategy Decision Logic ─────────────────────────

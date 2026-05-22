@@ -2,6 +2,8 @@ use crate::models::baseline::{Platform, StateItem, StateItemCategory};
 
 pub mod command_executor;
 pub mod wsl_remote;
+pub mod windows_base;
+pub mod windows_remote;
 
 #[cfg(target_os = "windows")]
 pub mod windows;
@@ -14,8 +16,8 @@ pub mod linux_base;
 #[cfg(target_os = "linux")]
 pub mod wsl;
 
+#[allow(unused_imports)]
 pub(crate) use command_executor::CommandExecutor;
-pub(crate) use linux_base::ShellExecutor;
 
 /// Metadata describing a state item that a platform adapter can detect or restore.
 pub struct StateItemDefinition {

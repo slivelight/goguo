@@ -4,7 +4,6 @@
 //! environment info — abstracted so that remote bridges (WslBridge, PowershellBridge)
 //! can be tested with mock executors.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 // ---------------------------------------------------------------------------
@@ -299,6 +298,9 @@ impl Default for PowershellBridgeExecutor {
 ///
 /// Placed at module level (not inside `tests`) so other adapter test modules
 /// can import it: `use crate::adapters::command_executor::MockCommandExecutor;`
+#[cfg(test)]
+use std::collections::HashMap;
+
 #[cfg(test)]
 pub struct MockCommandExecutor {
     outputs: HashMap<String, Result<String, String>>,

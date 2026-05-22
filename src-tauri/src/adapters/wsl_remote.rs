@@ -3,6 +3,8 @@
 //! Uses `CommandExecutor` (typically `WslBridgeExecutor`) to bridge operations
 //! from Windows to WSL via `wsl -e`. Covers the same 7 state items as `WslAdapter`.
 
+#![allow(dead_code)]
+
 use crate::adapters::command_executor::CommandExecutor;
 use crate::adapters::{PlatformAdapter, StateItemDefinition};
 use crate::models::baseline::{Platform, StateItem, StateItemCategory};
@@ -27,7 +29,7 @@ const ID_WSL2_NETWORK_MODE: &str = "wsl-wsl2-network-mode";
 ///
 /// Generic over `CommandExecutor` to enable full testability via `MockCommandExecutor`.
 /// In production, uses `WslBridgeExecutor` which delegates to `wsl -e`.
-pub struct WslRemoteAdapter<E: CommandExecutor> {
+pub(crate) struct WslRemoteAdapter<E: CommandExecutor> {
     executor: E,
 }
 

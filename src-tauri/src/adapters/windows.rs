@@ -9,6 +9,10 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+use crate::adapters::windows_base::{
+    self, ID_DNS_CACHE, ID_DNS_SERVERS, ID_HOSTS, ID_HTTP_PROXY, ID_PAC, ID_PROXY_PROCESSES,
+    ID_SYSTEM_PROXY, ID_TUN_STATUS, ID_WSL2_NETWORK_MODE,
+};
 use crate::adapters::{PlatformAdapter, StateItemDefinition};
 use crate::models::baseline::{Platform, StateItem, StateItemCategory};
 
@@ -18,17 +22,6 @@ use crate::models::baseline::{Platform, StateItem, StateItemCategory};
 
 const REG_INTERNET_SETTINGS: &str =
     r"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
-
-/// State item IDs
-const ID_HOSTS: &str = "win-hosts";
-const ID_SYSTEM_PROXY: &str = "win-system-proxy";
-const ID_PAC: &str = "win-pac";
-const ID_HTTP_PROXY: &str = "win-http-proxy";
-const ID_DNS_CACHE: &str = "win-dns-cache";
-const ID_DNS_SERVERS: &str = "win-dns-servers";
-const ID_PROXY_PROCESSES: &str = "win-proxy-processes";
-const ID_TUN_STATUS: &str = "win-tun-status";
-const ID_WSL2_NETWORK_MODE: &str = "win-wsl2-network-mode";
 
 // ---------------------------------------------------------------------------
 // Struct
@@ -200,288 +193,60 @@ impl WindowsAdapter {
 
     /// Parse `netsh winhttp show proxy` output into a JSON value.
     fn parse_netsh_winhttp(output: &str) -> serde_json::Value {
-        let mut proxy = String::new();
-        let mut bypass = String::new();
-        let mut access_type = String::from("unknown");
-
-        for line in output.lines() {
-            let trimmed = line.trim();
-            if let Some(rest) = trimmed.strip_prefix("Proxy Server(s)") {
-                proxy = rest
-                    .trim_start_matches([' ', ':'])
-                    .trim()
-                    .to_string();
-            } else if let Some(rest) = trimmed.strip_prefix("Bypass List") {
-                bypass = rest
-                    .trim_start_matches([' ', ':'])
-                    .trim()
-                    .to_string();
-            } else if trimmed.contains("Direct access") {
-                access_type = "direct".to_string();
-            } else if trimmed.contains("Proxy Server") && trimmed.contains("://") {
-                access_type = "proxy".to_string();
-            }
-        }
-
-        serde_json::json!({
-            "AccessType": access_type,
-            "ProxyServer": proxy,
-            "BypassList": bypass,
-        })
+        windows_base::parse_netsh_winhttp(output)
     }
 
     /// Parse `ipconfig /displaydns` output into a JSON value.
     fn parse_ipconfig_displaydns(output: &str) -> serde_json::Value {
-        let mut entries: Vec<serde_json::Value> = Vec::new();
-        let mut current_name = String::new();
-        let mut current_type = String::new();
-        let mut current_ttl: i64 = 0;
-        let mut current_data = String::new();
-        let mut in_entry = false;
-
-        for line in output.lines() {
-            let trimmed = line.trim();
-            if trimmed.starts_with("Record Name") {
-                if in_entry && !current_name.is_empty() {
-                    entries.push(serde_json::json!({
-                        "RecordName": current_name,
-                        "RecordType": current_type,
-                        "TTL": current_ttl,
-                        "Data": current_data,
-                    }));
-                }
-                current_name = trimmed
-                    .split(':')
-                    .nth(1)
-                    .map(|s| s.trim().to_string())
-                    .unwrap_or_default();
-                current_type.clear();
-                current_ttl = 0;
-                current_data.clear();
-                in_entry = true;
-            } else if trimmed.starts_with("Record Type") {
-                current_type = trimmed
-                    .split(':')
-                    .nth(1)
-                    .map(|s| s.trim().to_string())
-                    .unwrap_or_default();
-            } else if trimmed.starts_with("Time To Live") {
-                current_ttl = trimmed
-                    .split(':')
-                    .nth(1)
-                    .and_then(|s| s.trim().parse().ok())
-                    .unwrap_or(0);
-            } else if trimmed.starts_with("Data") {
-                current_data = trimmed
-                    .split(':')
-                    .nth(1)
-                    .map(|s| s.trim().to_string())
-                    .unwrap_or_default();
-            }
-        }
-        // Push last entry
-        if in_entry && !current_name.is_empty() {
-            entries.push(serde_json::json!({
-                "RecordName": current_name,
-                "RecordType": current_type,
-                "TTL": current_ttl,
-                "Data": current_data,
-            }));
-        }
-
-        serde_json::json!({
-            "EntryCount": entries.len(),
-            "Entries": entries,
-        })
+        windows_base::parse_ipconfig_displaydns(output)
     }
 
     /// Parse `netsh interface ip show dns` output into a JSON value.
     fn parse_netsh_dns(output: &str) -> serde_json::Value {
-        let mut interfaces: Vec<serde_json::Value> = Vec::new();
-        let mut current_iface = String::new();
-        let mut dns_servers: Vec<String> = Vec::new();
-
-        for line in output.lines() {
-            let trimmed = line.trim();
-            // New interface section
-            if trimmed.starts_with("Configuration for interface")
-                || trimmed.contains("interface")
-            {
-                if !current_iface.is_empty() {
-                    interfaces.push(serde_json::json!({
-                        "Interface": current_iface,
-                        "DnsServers": dns_servers,
-                    }));
-                }
-                current_iface = trimmed
-                    .trim_end_matches('"')
-                    .rsplit('"')
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
-                // Fallback: try parsing the line differently
-                if current_iface.is_empty() {
-                    current_iface = trimmed
-                        .trim_start_matches("Configuration for interface ")
-                        .trim()
-                        .to_string();
-                }
-                dns_servers = Vec::new();
-            } else if trimmed.contains("DNS servers") || trimmed.contains("Statically Configured DNS Servers")
-            {
-                let servers_part = trimmed
-                    .split(':')
-                    .nth(1)
-                    .map(|s| s.trim().to_string())
-                    .unwrap_or_default();
-                if !servers_part.is_empty()
-                    && servers_part != "None"
-                    && servers_part != "Not configured"
-                {
-                    dns_servers.push(servers_part);
-                }
-            } else if !trimmed.is_empty()
-                && !current_iface.is_empty()
-                && !trimmed.contains(':')
-                && dns_servers.len() < 10
-            {
-                // Continuation line with additional DNS server IPs
-                let maybe_ip = trimmed.trim();
-                if maybe_ip.contains('.')
-                    && maybe_ip.chars().all(|c| c.is_ascii_digit() || c == '.')
-                {
-                    dns_servers.push(maybe_ip.to_string());
-                }
-            }
-        }
-        // Push last interface
-        if !current_iface.is_empty() {
-            interfaces.push(serde_json::json!({
-                "Interface": current_iface,
-                "DnsServers": dns_servers,
-            }));
-        }
-
-        serde_json::json!({
-            "Interfaces": interfaces,
-        })
+        windows_base::parse_netsh_dns(output)
     }
 
     /// Detect proxy-related processes by scanning running processes.
     fn detect_proxy_processes() -> serde_json::Value {
-        let known_proxy_names: &[&str] = &[
-            "clash",
-            "v2ray",
-            "mihomo",
-            "sing-box",
-            "shadowsocks",
-            "ss-local",
-            "trojan",
-            "hysteria",
-            "naiveproxy",
-            "xray",
-        ];
-
-        let mut detected: Vec<serde_json::Value> = Vec::new();
-
-        // Use `tasklist` to enumerate running processes
         let output = Command::new("tasklist")
             .args(["/FO", "CSV", "/NH"])
             .output();
 
-        if let Ok(out) = output {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            for line in stdout.lines() {
-                let parts: Vec<&str> = line.split("\",\"").collect();
-                if parts.is_empty() {
-                    continue;
-                }
-                let proc_name = parts[0].trim_matches('"').to_lowercase();
-                for &known in known_proxy_names {
-                    if proc_name.contains(known) {
-                        let pid: String = if parts.len() > 1 {
-                            parts[1].trim_matches('"').to_string()
-                        } else {
-                            "unknown".to_string()
-                        };
-                        detected.push(serde_json::json!({
-                            "ProcessName": proc_name,
-                            "PID": pid,
-                            "MatchedKeyword": known,
-                        }));
-                        break;
-                    }
-                }
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                windows_base::parse_proxy_processes(&stdout)
             }
+            Err(e) => serde_json::json!({
+                "DetectedCount": 0,
+                "Processes": [],
+                "error": format!("tasklist failed: {e}"),
+            }),
         }
-
-        serde_json::json!({
-            "DetectedCount": detected.len(),
-            "Processes": detected,
-        })
     }
 
     /// Detect TUN adapter status by checking network adapters.
     fn detect_tun_status() -> serde_json::Value {
-        let mut found = false;
-        let mut adapter_name = String::new();
-
-        // Use `netsh interface show interface` to find TUN/TAP adapters
         let output = Command::new("netsh")
             .args(["interface", "show", "interface"])
             .output();
 
-        if let Ok(out) = output {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            for line in stdout.lines() {
-                let lower = line.to_lowercase();
-                if lower.contains("tun")
-                    || lower.contains("tap")
-                    || lower.contains("wintun")
-                    || lower.contains("clash")
-                    || lower.contains("singbox")
-                    || lower.contains("meta")
-                {
-                    found = true;
-                    // Extract adapter name (last column)
-                    adapter_name = line
-                        .split_whitespace()
-                        .last()
-                        .unwrap_or("unknown")
-                        .to_string();
-                    break;
-                }
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                windows_base::parse_tun_status(&stdout)
             }
+            Err(e) => serde_json::json!({
+                "TunFound": false,
+                "AdapterName": "",
+                "error": format!("netsh interface show interface failed: {e}"),
+            }),
         }
-
-        serde_json::json!({
-            "TunFound": found,
-            "AdapterName": adapter_name,
-        })
     }
 
     /// Parse `.wslconfig` content into a JSON value.
     fn parse_wslconfig(content: &str) -> serde_json::Value {
-        let mut networking_mode = String::new();
-
-        for line in content.lines() {
-            let trimmed = line.trim();
-            if let Some(rest) = trimmed.strip_prefix("networkingMode") {
-                networking_mode = rest
-                    .trim_start_matches([' ', '='])
-                    .trim()
-                    .to_string();
-            } else if let Some(rest) = trimmed.strip_prefix("networking-mode") {
-                networking_mode = rest
-                    .trim_start_matches([' ', '='])
-                    .trim()
-                    .to_string();
-            }
-        }
-
-        serde_json::json!({
-            "NetworkingMode": networking_mode,
-        })
+        windows_base::parse_wslconfig(content)
     }
 
     /// Read the `.wslconfig` file from the user profile.

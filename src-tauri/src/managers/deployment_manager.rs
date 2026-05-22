@@ -7,7 +7,12 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
+#[allow(unused_imports)]
+use crate::adapters::command_executor::{PowershellBridgeExecutor, WslBridgeExecutor};
 use crate::adapters::PlatformAdapter;
+use crate::adapters::windows_remote::WindowsRemoteAdapter;
+#[allow(unused_imports)]
+use crate::adapters::wsl_remote::WslRemoteAdapter;
 use crate::managers::config_manager::ConfigManager;
 use crate::models::config::{AppConfig, DeploymentMode};
 
@@ -90,9 +95,13 @@ impl DeploymentManager {
     }
 
     /// Create platform adapters appropriate for the given deployment mode.
+    ///
+    /// Coordinated mode creates **two** adapters (local + remote bridge):
+    /// - On Windows host: `WindowsAdapter` + `WslRemoteAdapter` (via `wsl -e`)
+    /// - On WSL host: `WslAdapter` + `WindowsRemoteAdapter` (via `powershell.exe`)
     #[must_use]
-    pub fn create_adapters(&self, mode: &DeploymentMode) -> Vec<Box<dyn PlatformAdapter>> {
-        let mut adapters: Vec<Box<dyn PlatformAdapter>> = Vec::new();
+    pub fn create_adapters(&self, mode: &DeploymentMode) -> Vec<Box<dyn PlatformAdapter + Send + Sync>> {
+        let mut adapters: Vec<Box<dyn PlatformAdapter + Send + Sync>> = Vec::new();
 
         match mode {
             DeploymentMode::WindowsOnly => {
@@ -102,8 +111,20 @@ impl DeploymentManager {
                         crate::adapters::windows::WindowsAdapter::new(),
                     ));
                 }
+                #[cfg(target_os = "linux")]
+                {
+                    adapters.push(Box::new(
+                        WindowsRemoteAdapter::new(PowershellBridgeExecutor::new()),
+                    ));
+                }
             }
             DeploymentMode::WslOnly => {
+                #[cfg(target_os = "windows")]
+                {
+                    adapters.push(Box::new(
+                        WslRemoteAdapter::new(WslBridgeExecutor::new()),
+                    ));
+                }
                 #[cfg(target_os = "linux")]
                 {
                     use crate::adapters::linux_base::SystemShellExecutor;
@@ -128,18 +149,30 @@ impl DeploymentManager {
             DeploymentMode::Coordinated => {
                 #[cfg(target_os = "windows")]
                 {
+                    // Windows host: local WindowsAdapter + remote WslRemoteAdapter
                     adapters.push(Box::new(
                         crate::adapters::windows::WindowsAdapter::new(),
+                    ));
+                    adapters.push(Box::new(
+                        WslRemoteAdapter::new(WslBridgeExecutor::new()),
                     ));
                 }
                 #[cfg(target_os = "linux")]
                 {
-                    use crate::adapters::linux_base::SystemShellExecutor;
-                    adapters.push(Box::new(
-                        crate::adapters::wsl::WslAdapter::<SystemShellExecutor>::new(
-                            SystemShellExecutor,
-                        ),
-                    ));
+                    // WSL host: local WslAdapter + remote WindowsRemoteAdapter
+                    let detector = WslDetector::new(SystemFileReader);
+                    if detector.is_running_in_wsl() {
+                        use crate::adapters::linux_base::SystemShellExecutor;
+                        adapters.push(Box::new(
+                            crate::adapters::wsl::WslAdapter::<SystemShellExecutor>::new(
+                                SystemShellExecutor,
+                            ),
+                        ));
+                        adapters.push(Box::new(
+                            WindowsRemoteAdapter::new(PowershellBridgeExecutor::new()),
+                        ));
+                    }
+                    // Pure Linux: Coordinated mode is not applicable
                 }
             }
         }
@@ -290,28 +323,38 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn create_adapters_coordinated_returns_one_on_linux() {
+    fn create_adapters_coordinated_returns_two_in_wsl() {
         let dir = TempDir::new().expect("temp dir");
         let config_dir = dir.path().join("config");
         let install_root = dir.path().join("app");
         let cm = ConfigManager::new(config_dir).expect("create config manager");
         let mgr = DeploymentManager::new(cm, install_root);
         let adapters = mgr.create_adapters(&DeploymentMode::Coordinated);
-        // On Linux, Coordinated only creates WslAdapter (WindowsAdapter not available)
-        assert_eq!(adapters.len(), 1);
+        // In WSL, Coordinated creates WslAdapter + WindowsRemoteAdapter = 2
+        // In pure Linux, Coordinated is not applicable = 0
+        let detector = WslDetector::new(SystemFileReader);
+        if detector.is_running_in_wsl() {
+            assert_eq!(adapters.len(), 2, "Coordinated mode should return 2 adapters in WSL");
+            let platforms: Vec<_> = adapters.iter().map(|a| a.platform()).collect();
+            assert!(platforms.contains(&crate::models::baseline::Platform::Wsl));
+            assert!(platforms.contains(&crate::models::baseline::Platform::Windows));
+        } else {
+            assert_eq!(adapters.len(), 0, "Coordinated mode not applicable on pure Linux");
+        }
     }
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn create_adapters_windows_only_returns_zero_on_linux() {
+    fn create_adapters_windows_only_returns_remote_on_linux() {
         let dir = TempDir::new().expect("temp dir");
         let config_dir = dir.path().join("config");
         let install_root = dir.path().join("app");
         let cm = ConfigManager::new(config_dir).expect("create config manager");
         let mgr = DeploymentManager::new(cm, install_root);
         let adapters = mgr.create_adapters(&DeploymentMode::WindowsOnly);
-        // On Linux, WindowsAdapter is not available
-        assert_eq!(adapters.len(), 0);
+        // On Linux, WindowsOnly creates WindowsRemoteAdapter (via powershell.exe)
+        assert_eq!(adapters.len(), 1);
+        assert_eq!(adapters[0].platform(), crate::models::baseline::Platform::Windows);
     }
 
     // -----------------------------------------------------------------------
