@@ -39,6 +39,7 @@ pub const KNOWN_PROXY_NAMES: &[&str] = &[
 // ---------------------------------------------------------------------------
 
 /// Parse `netsh winhttp show proxy` output into a JSON value.
+#[must_use]
 pub fn parse_netsh_winhttp(output: &str) -> serde_json::Value {
     let mut proxy = String::new();
     let mut bypass = String::new();
@@ -71,6 +72,7 @@ pub fn parse_netsh_winhttp(output: &str) -> serde_json::Value {
 }
 
 /// Parse `ipconfig /displaydns` output into a JSON value.
+#[must_use]
 pub fn parse_ipconfig_displaydns(output: &str) -> serde_json::Value {
     let mut entries: Vec<serde_json::Value> = Vec::new();
     let mut current_name = String::new();
@@ -136,6 +138,7 @@ pub fn parse_ipconfig_displaydns(output: &str) -> serde_json::Value {
 }
 
 /// Parse `netsh interface ip show dns` output into a JSON value.
+#[must_use]
 pub fn parse_netsh_dns(output: &str) -> serde_json::Value {
     let mut interfaces: Vec<serde_json::Value> = Vec::new();
     let mut current_iface = String::new();
@@ -208,6 +211,7 @@ pub fn parse_netsh_dns(output: &str) -> serde_json::Value {
 }
 
 /// Parse `.wslconfig` content into a JSON value.
+#[must_use]
 pub fn parse_wslconfig(content: &str) -> serde_json::Value {
     let mut networking_mode = String::new();
 
@@ -232,6 +236,7 @@ pub fn parse_wslconfig(content: &str) -> serde_json::Value {
 }
 
 /// Parse `tasklist /FO CSV /NH` output for proxy-related processes.
+#[must_use]
 pub fn parse_proxy_processes(output: &str) -> serde_json::Value {
     let mut detected: Vec<serde_json::Value> = Vec::new();
 
@@ -265,6 +270,7 @@ pub fn parse_proxy_processes(output: &str) -> serde_json::Value {
 }
 
 /// Parse `netsh interface show interface` output for TUN/TAP adapter detection.
+#[must_use]
 pub fn parse_tun_status(output: &str) -> serde_json::Value {
     let mut found = false;
     let mut adapter_name = String::new();

@@ -35,7 +35,7 @@ pub(crate) struct WslRemoteAdapter<E: CommandExecutor> {
 
 impl<E: CommandExecutor> WslRemoteAdapter<E> {
     #[must_use]
-    pub fn new(executor: E) -> Self {
+    pub const fn new(executor: E) -> Self {
         Self { executor }
     }
 
@@ -100,9 +100,8 @@ impl<E: CommandExecutor> WslRemoteAdapter<E> {
     }
 
     fn read_shell_rc_proxy(&self) -> serde_json::Value {
-        let home = match self.executor.home_dir() {
-            Some(h) => h,
-            None => return serde_json::json!({ "error": "Home directory not found" }),
+        let Some(home) = self.executor.home_dir() else {
+            return serde_json::json!({ "error": "Home directory not found" });
         };
         let mut files_checked: Vec<String> = Vec::new();
         let mut proxy_lines: Vec<String> = Vec::new();
@@ -166,11 +165,10 @@ impl<E: CommandExecutor> WslRemoteAdapter<E> {
         let is_wsl = self
             .executor
             .read_file("/proc/version")
-            .map(|content| {
+            .is_ok_and(|content| {
                 let lower = content.to_lowercase();
                 lower.contains("microsoft") || lower.contains("wsl")
-            })
-            .unwrap_or(false);
+            });
 
         if !is_wsl {
             return serde_json::json!({ "mode": "not_installed", "is_wsl": false });

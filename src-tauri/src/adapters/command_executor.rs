@@ -1,7 +1,7 @@
 //! Command executor abstraction for remote adapter bridge operations.
 //!
 //! Provides a trait for executing commands, reading/writing files, and querying
-//! environment info — abstracted so that remote bridges (WslBridge, PowershellBridge)
+//! environment info — abstracted so that remote bridges (`WslBridge`, `PowershellBridge`)
 //! can be tested with mock executors.
 
 use std::path::PathBuf;
@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 /// Abstraction over command execution and file I/O for adapter bridge operations.
 ///
-/// Remote adapters (WslRemoteAdapter, WindowsRemoteAdapter) use this trait to
+/// Remote adapters (`WslRemoteAdapter`, `WindowsRemoteAdapter`) use this trait to
 /// perform all I/O, allowing full testability via `MockCommandExecutor`.
 pub(crate) trait CommandExecutor: Send + Sync {
     /// Execute a program with arguments and return its stdout.
@@ -87,7 +87,7 @@ pub struct WslBridgeExecutor {
 
 impl WslBridgeExecutor {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { distro: None }
     }
 
@@ -105,7 +105,7 @@ impl WslBridgeExecutor {
             args.push(d.clone());
         }
         args.push("-e".to_string());
-        args.extend(extra.iter().map(|s| s.to_string()));
+        args.extend(extra.iter().map(|s| (*s).to_string()));
         args
     }
 }
@@ -192,10 +192,13 @@ impl CommandExecutor for PowershellBridgeExecutor {
     fn execute(&self, program: &str, args: &[&str]) -> Result<String, String> {
         let mut cmd_str = program.to_string();
         for arg in args {
+            cmd_str.push(' ');
             if arg.contains(' ') || arg.contains('"') {
-                cmd_str.push_str(&format!(" '{arg}'"));
+                cmd_str.push('\'');
+                cmd_str.push_str(arg);
+                cmd_str.push('\'');
             } else {
-                cmd_str.push_str(&format!(" {arg}"));
+                cmd_str.push_str(arg);
             }
         }
         let output = std::process::Command::new("powershell.exe")
@@ -267,20 +270,17 @@ impl CommandExecutor for PowershellBridgeExecutor {
 
 impl PowershellBridgeExecutor {
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self
     }
 
     /// Convert a Windows path (C:\...) to a WSL /mnt/c/... path.
     fn win_to_wsl_path(path: &str) -> String {
         let path = path.replace('\\', "/");
-        if let Some(stripped) = path.strip_prefix("C:/") {
-            format!("/mnt/c/{stripped}")
-        } else if let Some(stripped) = path.strip_prefix("D:/") {
-            format!("/mnt/d/{stripped}")
-        } else {
-            path
-        }
+        path.strip_prefix("C:/")
+            .map(|s| format!("/mnt/c/{s}"))
+            .or_else(|| path.strip_prefix("D:/").map(|s| format!("/mnt/d/{s}")))
+            .unwrap_or(path)
     }
 }
 
@@ -311,6 +311,7 @@ pub struct MockCommandExecutor {
 
 #[cfg(test)]
 impl MockCommandExecutor {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             outputs: HashMap::new(),
@@ -320,22 +321,26 @@ impl MockCommandExecutor {
         }
     }
 
+    #[must_use]
     pub fn with_output(mut self, program: &str, args: &[&str], result: Result<String, String>) -> Self {
         let key = Self::command_key(program, args);
         self.outputs.insert(key, result);
         self
     }
 
+    #[must_use]
     pub fn with_env_var(mut self, key: &str, value: &str) -> Self {
         self.env_vars.insert(key.to_string(), value.to_string());
         self
     }
 
+    #[must_use]
     pub fn with_home(mut self, home: PathBuf) -> Self {
         self.home = Some(home);
         self
     }
 
+    #[must_use]
     pub fn with_file(mut self, path: &str, content: &str) -> Self {
         self.file_contents.insert(path.to_string(), content.to_string());
         self
@@ -365,7 +370,7 @@ impl CommandExecutor for MockCommandExecutor {
         self.outputs
             .get(&key)
             .cloned()
-            .unwrap_or(Err(format!("No mock output for: {key}")))
+            .unwrap_or_else(|| Err(format!("No mock output for: {key}")))
     }
 
     fn env_var(&self, key: &str) -> Option<String> {

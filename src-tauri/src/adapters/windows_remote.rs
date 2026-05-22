@@ -37,7 +37,7 @@ pub(crate) struct WindowsRemoteAdapter<E: CommandExecutor> {
 
 impl<E: CommandExecutor> WindowsRemoteAdapter<E> {
     #[must_use]
-    pub fn new(executor: E) -> Self {
+    pub const fn new(executor: E) -> Self {
         Self { executor }
     }
 
@@ -116,9 +116,8 @@ impl<E: CommandExecutor> WindowsRemoteAdapter<E> {
     }
 
     fn read_wslconfig(&self) -> serde_json::Value {
-        let home = match self.executor.env_var("USERPROFILE") {
-            Some(h) => h,
-            None => return serde_json::json!({ "error": "USERPROFILE not found" }),
+        let Some(home) = self.executor.env_var("USERPROFILE") else {
+            return serde_json::json!({ "error": "USERPROFILE not found" });
         };
         let path = format!("{home}\\.wslconfig");
         match self.executor.read_file(&path) {
