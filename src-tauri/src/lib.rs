@@ -24,6 +24,13 @@ pub fn run() {
             std::fs::create_dir_all(&data_dir).ok();
             app.manage(AppState::new(&data_dir).expect("app state"));
             app.manage(SiteRulesState::new(&data_dir));
+
+            // F105: spawn ProxyGuard background monitoring thread
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                commands::baseline::proxy_guard_loop(app_handle);
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -498,6 +498,50 @@ impl<E: ShellExecutor> LinuxBaseAdapter<E> {
             .map_err(|e| format!("Failed to write {}: {e}", path.display()))?;
         Ok(perm)
     }
+
+    /// Write proxy environment variables to an environment file (e.g., `/etc/environment`).
+    ///
+    /// Reads existing content, removes old proxy-related lines, appends new ones,
+    /// and writes back. Non-proxy lines are preserved.
+    #[allow(clippy::unused_self)]
+    pub fn write_proxy_env(
+        &self,
+        path: &Path,
+        http_proxy: &str,
+        https_proxy: &str,
+        no_proxy: &str,
+    ) -> Result<WritePermission, String> {
+        let existing = fs::read_to_string(path).unwrap_or_default();
+        let mut lines: Vec<String> = existing
+            .lines()
+            .filter(|line| !is_proxy_env_line(line))
+            .map(String::from)
+            .collect();
+
+        if !http_proxy.is_empty() {
+            lines.push(format!("http_proxy=\"{http_proxy}\""));
+            lines.push(format!("HTTP_PROXY=\"{http_proxy}\""));
+        }
+        if !https_proxy.is_empty() {
+            lines.push(format!("https_proxy=\"{https_proxy}\""));
+            lines.push(format!("HTTPS_PROXY=\"{https_proxy}\""));
+        }
+        if !no_proxy.is_empty() {
+            lines.push(format!("no_proxy=\"{no_proxy}\""));
+            lines.push(format!("NO_PROXY=\"{no_proxy}\""));
+        }
+
+        let content = lines.join("\n");
+        self.write_etc_environment(path, &content)
+    }
+}
+
+/// Check if a line is a proxy-related environment variable assignment.
+fn is_proxy_env_line(line: &str) -> bool {
+    let lower = line.to_lowercase();
+    lower.starts_with("http_proxy=")
+        || lower.starts_with("https_proxy=")
+        || lower.starts_with("no_proxy=")
 }
 
 // ===========================================================================
@@ -787,5 +831,107 @@ mod tests {
                 assert!(suggested_command.contains("sudo"));
             }
         }
+    }
+
+    // ── write_proxy_env tests (F102) ───────────────────────────────────────
+
+    #[test]
+    fn is_proxy_env_line_recognizes_all_variants() {
+        assert!(is_proxy_env_line("http_proxy=\"http://proxy:8080\""));
+        assert!(is_proxy_env_line("HTTP_PROXY=\"http://proxy:8080\""));
+        assert!(is_proxy_env_line("https_proxy=\"http://proxy:8443\""));
+        assert!(is_proxy_env_line("HTTPS_PROXY=\"http://proxy:8443\""));
+        assert!(is_proxy_env_line("no_proxy=\"localhost,127.0.0.1\""));
+        assert!(is_proxy_env_line("NO_PROXY=\"localhost,127.0.0.1\""));
+    }
+
+    #[test]
+    fn is_proxy_env_line_rejects_non_proxy_lines() {
+        assert!(!is_proxy_env_line("PATH=/usr/bin"));
+        assert!(!is_proxy_env_line(""));
+        assert!(!is_proxy_env_line("# http_proxy=ignored"));
+        assert!(!is_proxy_env_line("SOME_OTHER_VAR=\"value\""));
+    }
+
+    #[test]
+    fn write_proxy_env_writes_to_empty_file() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let path = dir.path().join("environment");
+        fs::write(&path, "").expect("create empty file");
+
+        let adapter = LinuxBaseAdapter::new(MockShellExecutor::default());
+        let perm = adapter.write_proxy_env(&path, "http://proxy:8080", "http://proxy:8443", "localhost").expect("write");
+        assert_eq!(perm, WritePermission::Granted);
+
+        let content = fs::read_to_string(&path).expect("read");
+        assert!(content.contains("http_proxy=\"http://proxy:8080\""));
+        assert!(content.contains("HTTP_PROXY=\"http://proxy:8080\""));
+        assert!(content.contains("https_proxy=\"http://proxy:8443\""));
+        assert!(content.contains("HTTPS_PROXY=\"http://proxy:8443\""));
+        assert!(content.contains("no_proxy=\"localhost\""));
+        assert!(content.contains("NO_PROXY=\"localhost\""));
+    }
+
+    #[test]
+    fn write_proxy_env_preserves_existing_non_proxy_lines() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let path = dir.path().join("environment");
+        fs::write(&path, "PATH=/usr/local/bin:/usr/bin\nLANG=en_US.UTF-8\n").expect("write existing");
+
+        let adapter = LinuxBaseAdapter::new(MockShellExecutor::default());
+        let perm = adapter.write_proxy_env(&path, "http://proxy:8080", "", "").expect("write");
+        assert_eq!(perm, WritePermission::Granted);
+
+        let content = fs::read_to_string(&path).expect("read");
+        assert!(content.contains("PATH=/usr/local/bin:/usr/bin"));
+        assert!(content.contains("LANG=en_US.UTF-8"));
+        assert!(content.contains("http_proxy=\"http://proxy:8080\""));
+        assert!(!content.contains("https_proxy="));
+    }
+
+    #[test]
+    fn write_proxy_env_replaces_existing_proxy_lines() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let path = dir.path().join("environment");
+        fs::write(&path, "PATH=/usr/bin\nhttp_proxy=\"http://old:8080\"\nHTTP_PROXY=\"http://old:8080\"\n").expect("write existing");
+
+        let adapter = LinuxBaseAdapter::new(MockShellExecutor::default());
+        adapter.write_proxy_env(&path, "http://new:9090", "", "").expect("write");
+
+        let content = fs::read_to_string(&path).expect("read");
+        assert!(content.contains("PATH=/usr/bin"));
+        assert!(content.contains("http_proxy=\"http://new:9090\""));
+        assert!(!content.contains("http://old:8080"));
+        // Should not have duplicate old lines
+        assert_eq!(content.matches("http_proxy=").count(), 1);
+        assert_eq!(content.matches("HTTP_PROXY=").count(), 1);
+    }
+
+    #[test]
+    fn write_proxy_env_empty_values_add_no_lines() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let path = dir.path().join("environment");
+        fs::write(&path, "PATH=/usr/bin\n").expect("write existing");
+
+        let adapter = LinuxBaseAdapter::new(MockShellExecutor::default());
+        let perm = adapter.write_proxy_env(&path, "", "", "").expect("write");
+        assert_eq!(perm, WritePermission::Granted);
+
+        let content = fs::read_to_string(&path).expect("read");
+        assert_eq!(content, "PATH=/usr/bin");
+    }
+
+    #[test]
+    fn write_proxy_env_handles_nonexistent_file() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let path = dir.path().join("environment");
+        // Don't create the file
+
+        let adapter = LinuxBaseAdapter::new(MockShellExecutor::default());
+        let perm = adapter.write_proxy_env(&path, "http://proxy:8080", "", "").expect("write");
+        assert_eq!(perm, WritePermission::Granted);
+
+        let content = fs::read_to_string(&path).expect("read");
+        assert!(content.contains("http_proxy=\"http://proxy:8080\""));
     }
 }

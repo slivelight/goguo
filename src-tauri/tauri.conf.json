@@ -4,10 +4,8 @@
   "version": "0.1.0",
   "identifier": "com.goguo.app",
   "build": {
-    "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "beforeBuildCommand": "pnpm build"
   },
   "app": {
     "windows": [

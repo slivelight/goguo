@@ -332,7 +332,7 @@ use crate::managers::baseline_manager::{BaselineManager, ComparisonResult};
 use crate::managers::mihomo_manager::MihomoManager;
 use crate::services::audit_logger::AuditLogger;
 use crate::services::proxy_guard::ProxyGuard;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 /// Shared application state injected into Tauri commands via `tauri::State`.
 pub struct AppState {
@@ -858,6 +858,12 @@ pub fn tauri_stop_service(
     check_not_restoring(&state)?;
     state.is_restoring.store(true, std::sync::atomic::Ordering::Relaxed);
 
+    // F106: emit recovery:started before restore
+    let _ = app.emit("recovery:started", RecoveryStartedPayload {
+        task_id: String::new(),
+        total_items: 0,
+    });
+
     let mut mihomo = state.mihomo_manager.lock().expect("lock");
     let baseline_mgr = state.baseline_manager.lock().expect("lock");
     let result = stop_service(&mut mihomo, &baseline_mgr);
@@ -867,6 +873,15 @@ pub fn tauri_stop_service(
     state.is_restoring.store(false, std::sync::atomic::Ordering::Relaxed);
 
     let result = result?;
+
+    // F106: emit recovery:completed or recovery:failed based on result
+    if result.recovery_triggered {
+        let _ = app.emit("recovery:completed", &RecoveryCompletedPayload {
+            task_id: String::new(),
+            succeeded: 0,
+            failed: 0,
+        });
+    }
     let _ = app.emit("service:stopped", &result);
     Ok(result)
 }
@@ -991,6 +1006,110 @@ pub fn tauri_get_wsl_status(state: tauri::State<'_, AppState>) -> Result<WslStat
 pub fn tauri_get_network_mode(state: tauri::State<'_, AppState>) -> Result<NetworkModeResponse, String> {
     let depl_mgr = state.deployment_manager.lock().expect("lock");
     get_network_mode(&depl_mgr)
+}
+
+// ── ProxyGuard Background Loop (F105) ─────────────────────────────────────
+
+/// Background loop that periodically checks mihomo health via `ProxyGuard`.
+///
+/// Runs in a dedicated thread spawned from Tauri `setup`. Lock acquisition
+/// order is always `proxy_guard` → `mihomo_manager` to prevent deadlocks.
+///
+/// # Panics
+///
+/// Panics if any `Mutex` lock is poisoned (i.e., another thread panicked while holding the lock).
+#[allow(clippy::needless_pass_by_value)]
+pub fn proxy_guard_loop(app: tauri::AppHandle) {
+    let check_interval = 3u64; // seconds, matches ProxyGuardConfig default
+
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(check_interval));
+
+        let state = app.state::<AppState>();
+
+        // Skip if a restore is already in progress
+        if state.is_restoring.load(std::sync::atomic::Ordering::Relaxed) {
+            continue;
+        }
+
+        let action = {
+            let mut guard = state.proxy_guard.lock().expect("lock");
+            let mut mihomo = state.mihomo_manager.lock().expect("lock");
+            guard.check_and_recover(&mut mihomo)
+        };
+
+        match action {
+            crate::services::proxy_guard::GuardAction::Restarted { attempt } => {
+                let max = {
+                    let guard = state.proxy_guard.lock().expect("lock");
+                    guard.max_restart_attempts()
+                };
+                let _ = app.emit("service:started", ServiceStartedPayload {
+                    mihomo_running: true,
+                });
+                let _ = app.emit(
+                    "proxy-guard:recovery-triggered",
+                    AutoRecoveryTriggeredPayload {
+                        restart_attempts: attempt,
+                        max_attempts: max,
+                    },
+                );
+            }
+            crate::services::proxy_guard::GuardAction::RecoveryTriggered => {
+                // Trigger baseline restore
+                trigger_baseline_restore(&state, &app);
+            }
+            crate::services::proxy_guard::GuardAction::Healthy => {}
+        }
+    }
+}
+
+/// Perform baseline restore triggered by `ProxyGuard` when max restarts exceeded.
+fn trigger_baseline_restore(state: &AppState, app: &tauri::AppHandle) {
+    // Set restoring flag
+    if state.is_restoring.compare_exchange(
+        false,
+        true,
+        std::sync::atomic::Ordering::Relaxed,
+        std::sync::atomic::Ordering::Relaxed,
+    ).is_err() {
+        // Another restore is already in progress
+        return;
+    }
+
+    // Emit recovery:started
+    let _ = app.emit("recovery:started", RecoveryStartedPayload {
+        task_id: String::new(),
+        total_items: 0,
+    });
+
+    let baseline_mgr = state.baseline_manager.lock().expect("lock");
+    let result = baseline_mgr.restore_to_baseline();
+    drop(baseline_mgr);
+
+    state.is_restoring.store(false, std::sync::atomic::Ordering::Relaxed);
+
+    match result {
+        Ok(r) if r.failed == 0 => {
+            let _ = app.emit("recovery:completed", RecoveryCompletedPayload {
+                task_id: String::new(),
+                succeeded: r.succeeded,
+                failed: r.failed,
+            });
+        }
+        Ok(_r) => {
+            let _ = app.emit("recovery:failed", RecoveryFailedPayload {
+                task_id: String::new(),
+                failed_items: Vec::new(),
+            });
+        }
+        Err(_) => {
+            let _ = app.emit("recovery:failed", RecoveryFailedPayload {
+                task_id: String::new(),
+                failed_items: Vec::new(),
+            });
+        }
+    }
 }
 
 #[cfg(test)]

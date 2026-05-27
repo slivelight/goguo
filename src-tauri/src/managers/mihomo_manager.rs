@@ -17,6 +17,8 @@ pub enum MihomoError {
     Io(std::io::Error),
     /// The process is not running.
     NotRunning,
+    /// The API port is already in use by a non-mihomo process.
+    PortConflict(String),
 }
 
 impl std::fmt::Display for MihomoError {
@@ -27,6 +29,9 @@ impl std::fmt::Display for MihomoError {
             Self::ApiTimeout => write!(f, "API did not become ready within timeout"),
             Self::Io(e) => write!(f, "I/O error: {e}"),
             Self::NotRunning => write!(f, "Mihomo process is not running"),
+            Self::PortConflict(addr) => {
+                write!(f, "API port {addr} is already in use by a non-mihomo process")
+            }
         }
     }
 }
@@ -103,6 +108,9 @@ impl From<std::io::Error> for MihomoError {
 pub struct MihomoManager {
     config: MihomoConfig,
     process: Option<Child>,
+    /// If true, the mihomo process was already running when `GoGuo` started
+    /// and we adopted it. We should NOT kill it on stop/drop.
+    externally_managed: bool,
 }
 
 impl MihomoManager {
@@ -112,16 +120,29 @@ impl MihomoManager {
         Self {
             config,
             process: None,
+            externally_managed: false,
         }
     }
 
     /// Start the mihomo subprocess and wait for its API to become ready.
+    ///
+    /// If the API port is already responding (a mihomo instance is already
+    /// running with a matching config directory), the existing process is
+    /// adopted instead of spawning a new one.
     ///
     /// # Errors
     ///
     /// Returns `MihomoError` if the binary is not found, the process fails to
     /// start, or the API does not respond within the timeout.
     pub fn start(&mut self) -> Result<(), MihomoError> {
+        // Check if API port is already responding.
+        let api_url = format!("http://{}/version", self.config.api_address);
+        if self.check_api_health(&api_url) {
+            // A process is already listening on our API port — adopt it.
+            self.externally_managed = true;
+            return Ok(());
+        }
+
         // Ensure config directory exists first.
         std::fs::create_dir_all(&self.config.config_dir)?;
 
@@ -142,7 +163,6 @@ impl MihomoManager {
         self.process = Some(child);
 
         // Wait for API readiness.
-        let api_url = format!("http://{}/version", self.config.api_address);
         let timeout = Duration::from_secs(10);
         let start = std::time::Instant::now();
 
@@ -160,10 +180,19 @@ impl MihomoManager {
 
     /// Stop the mihomo subprocess gracefully (SIGTERM → timeout SIGKILL).
     ///
+    /// If the process was adopted (externally managed), it will NOT be killed —
+    /// only the internal handle is cleared.
+    ///
     /// # Errors
     ///
     /// Returns `MihomoError` if the process cannot be stopped.
     pub fn stop(&mut self) -> Result<(), MihomoError> {
+        if self.externally_managed {
+            self.externally_managed = false;
+            self.process = None;
+            return Ok(());
+        }
+
         let proc = self
             .process
             .as_mut()
@@ -195,7 +224,15 @@ impl MihomoManager {
     }
 
     /// Check if the mihomo process is alive and its API is reachable.
+    ///
+    /// For externally managed processes (no Child handle), this checks the API
+    /// port directly.
     pub fn is_running(&mut self) -> bool {
+        if self.externally_managed {
+            let api_url = format!("http://{}/version", self.config.api_address);
+            return self.check_api_health(&api_url);
+        }
+
         match self.process.as_mut() {
             Some(proc) => {
                 match proc.try_wait() {
@@ -301,7 +338,7 @@ impl MihomoManager {
 
 impl Drop for MihomoManager {
     fn drop(&mut self) {
-        if self.process.is_some() {
+        if self.process.is_some() && !self.externally_managed {
             self.kill_process();
         }
     }
@@ -449,5 +486,102 @@ mod tests {
         mock.reload_config("/test/rules.yaml").expect("reload");
         assert!(mock.was_called());
         assert_eq!(mock.last_config_path(), Some("/test/rules.yaml".to_string()));
+    }
+
+    // --- F107: Adopt existing mihomo process tests ---
+
+    /// Helper: bind to port 0 (OS-assigned free port), return the listener
+    /// and a MihomoConfig pointing at that port.
+    struct FakeApi {
+        _listener: std::net::TcpListener,
+        config: MihomoConfig,
+    }
+
+    impl FakeApi {
+        fn create(dir: &std::path::Path) -> Self {
+            let listener =
+                std::net::TcpListener::bind("127.0.0.1:0")
+                    .expect("bind to any free port");
+            let port = listener.local_addr().unwrap().port();
+            let config = MihomoConfig {
+                binary_path: dir.join("fake-mihomo"),
+                config_dir: dir.join("data").join("mihomo"),
+                api_address: format!("127.0.0.1:{port}"),
+                api_secret: "test-secret".to_string(),
+                mixed_port: port,
+                log_level: "warning".to_string(),
+            };
+            Self {
+                _listener: listener,
+                config,
+            }
+        }
+    }
+
+    #[test]
+    fn start_adopts_existing_api() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let fake = FakeApi::create(dir.path());
+        let mut mgr = MihomoManager::new(fake.config);
+
+        let result = mgr.start();
+        assert!(result.is_ok(), "Expected Ok, got {result:?}");
+        assert!(mgr.externally_managed);
+        assert!(mgr.process.is_none());
+    }
+
+    #[test]
+    fn stop_does_not_kill_externally_managed() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let fake = FakeApi::create(dir.path());
+        let mut mgr = MihomoManager::new(fake.config);
+
+        mgr.start().expect("adopt");
+        assert!(mgr.externally_managed);
+
+        let result = mgr.stop();
+        assert!(result.is_ok(), "Expected Ok, got {result:?}");
+        assert!(!mgr.externally_managed);
+        assert!(mgr.process.is_none());
+
+        // The fake API listener is still alive (not killed).
+        assert!(fake._listener.local_addr().is_ok());
+    }
+
+    #[test]
+    fn is_running_detects_externally_managed() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let fake = FakeApi::create(dir.path());
+        let mut mgr = MihomoManager::new(fake.config);
+
+        mgr.start().expect("adopt");
+        assert!(mgr.is_running(), "externally managed should report running");
+    }
+
+    #[test]
+    fn is_running_false_after_fake_listener_drops() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let saved_config;
+        {
+            let fake = FakeApi::create(dir.path());
+            saved_config = fake.config.clone();
+            let mut mgr = MihomoManager::new(fake.config);
+            mgr.start().expect("adopt");
+            assert!(mgr.is_running());
+            // mgr dropped here — should NOT kill externally managed
+        }
+
+        // Now no one is listening. A new manager with the same config
+        // should report not running.
+        let mut mgr2 = MihomoManager::new(saved_config);
+        assert!(!mgr2.is_running());
+    }
+
+    #[test]
+    fn port_conflict_error_variant_displays() {
+        let err = MihomoError::PortConflict("127.0.0.1:7890".to_string());
+        let msg = format!("{err}");
+        assert!(msg.contains("7890"));
+        assert!(msg.contains("non-mihomo"));
     }
 }

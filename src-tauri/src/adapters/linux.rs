@@ -188,10 +188,28 @@ impl<E: ShellExecutor + Send + Sync> PlatformAdapter for LinuxAdapter<E> {
     fn write_state(&self, item: &StateItem) -> Result<(), String> {
         match item.id.as_str() {
             ID_PROXY_ENV => {
-                // Proxy env vars are written via shell commands; we delegate
-                // to the user to set them in their session. For now, return Ok
-                // as the value is informational.
-                Ok(())
+                let http = item
+                    .value
+                    .get("http_proxy")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let https = item
+                    .value
+                    .get("https_proxy")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let no_proxy = item
+                    .value
+                    .get("no_proxy")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let path = Path::new(ETC_ENVIRONMENT_PATH);
+                match self.base.write_proxy_env(path, http, https, no_proxy)? {
+                    WritePermission::Granted => Ok(()),
+                    WritePermission::NeedRoot { suggested_command } => Err(format!(
+                        "Root required to write /etc/environment. Suggested: {suggested_command}"
+                    )),
+                }
             }
             ID_GIT_PROXY => {
                 let http_proxy = item
@@ -546,5 +564,37 @@ mod tests {
         };
         let result = adapter.write_state(&item);
         assert!(result.is_ok(), "write_state for git proxy should succeed");
+    }
+
+    // -----------------------------------------------------------------------
+    // write_state for proxy-env (F102: no longer a no-op)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn write_proxy_env_dispatches_write() {
+        let adapter = make_adapter(MockShellExecutor::new());
+        let item = StateItem {
+            id: ID_PROXY_ENV.to_string(),
+            platform: Platform::Linux,
+            category: StateItemCategory::Restorable,
+            value: serde_json::json!({
+                "http_proxy": "http://proxy:8080",
+                "https_proxy": "http://proxy:8443",
+                "no_proxy": "localhost",
+            }),
+            collected_at: String::new(),
+            classification_reason: String::new(),
+        };
+        let result = adapter.write_state(&item);
+        // The write targets /etc/environment — in test env may require root
+        match result {
+            Ok(()) => { /* writable in this environment */ }
+            Err(e) => {
+                assert!(
+                    e.contains("Root required") || e.contains("Failed to write"),
+                    "Unexpected error: {e}"
+                );
+            }
+        }
     }
 }

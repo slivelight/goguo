@@ -43,6 +43,10 @@ describe('diag-store', () => {
       total_nodes: 5,
       available_nodes: 3,
       current_node: 'node-1',
+      nodes: [
+        { name: 'node-1', protocol: 'socks5', status: 'alive', address: '127.0.0.1:7890' },
+        { name: 'node-2', protocol: 'socks5', status: 'dead', address: '127.0.0.1:7891' },
+      ],
     });
 
     await useDiagStore.getState().fetchNodePool();
