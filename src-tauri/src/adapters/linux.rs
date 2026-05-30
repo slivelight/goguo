@@ -69,14 +69,14 @@ impl<E: ShellExecutor> LinuxAdapter<E> {
     }
 
     fn push_restorable_items(&self, items: &mut Vec<StateItem>, now: &str) {
-        // linux-proxy-env
+        // linux-proxy-env (Excluded from baseline — managed by service lifecycle)
         items.push(StateItem {
             id: ID_PROXY_ENV.to_string(),
             platform: Platform::Linux,
-            category: StateItemCategory::Restorable,
+            category: StateItemCategory::Excluded,
             value: self.base.read_proxy_env_vars(),
             collected_at: now.to_string(),
-            classification_reason: "Environment variables, writable".to_string(),
+            classification_reason: "Service lifecycle overlay, not baseline-managed".to_string(),
         });
 
         // linux-git-proxy
@@ -144,8 +144,9 @@ impl<E: ShellExecutor + Send + Sync> PlatformAdapter for LinuxAdapter<E> {
         vec![
             StateItemDefinition {
                 id: ID_PROXY_ENV.to_string(),
-                category: StateItemCategory::Restorable,
-                description: "Proxy-related environment variables".to_string(),
+                category: StateItemCategory::Excluded,
+                description: "Proxy environment variables — managed by service lifecycle, not baseline"
+                    .to_string(),
             },
             StateItemDefinition {
                 id: ID_GIT_PROXY.to_string(),
@@ -314,14 +315,14 @@ mod tests {
     }
 
     #[test]
-    fn definitions_has_four_restorable() {
+    fn definitions_has_three_restorable() {
         let adapter = make_adapter(MockShellExecutor::new());
         let restorable_count = adapter
             .state_item_definitions()
             .iter()
             .filter(|d| d.category == StateItemCategory::Restorable)
             .count();
-        assert_eq!(restorable_count, 4);
+        assert_eq!(restorable_count, 3);
     }
 
     #[test]
@@ -352,7 +353,7 @@ mod tests {
         assert_eq!(proxy_item.value["https_proxy"], "http://proxy:8443");
         assert_eq!(proxy_item.value["no_proxy"], "localhost,127.0.0.1");
         assert_eq!(proxy_item.platform, Platform::Linux);
-        assert_eq!(proxy_item.category, StateItemCategory::Restorable);
+        assert_eq!(proxy_item.category, StateItemCategory::Excluded);
     }
 
     #[test]

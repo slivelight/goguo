@@ -66,14 +66,14 @@ impl<E: ShellExecutor> WslAdapter<E> {
 
     /// Collect restorable state items by delegating to `LinuxBaseAdapter`.
     fn push_restorable_items(&self, items: &mut Vec<StateItem>, now: &str) {
-        // wsl-proxy-env
+        // wsl-proxy-env (Excluded from baseline — managed by service lifecycle)
         items.push(StateItem {
             id: ID_PROXY_ENV.to_string(),
             platform: Platform::Wsl,
-            category: StateItemCategory::Restorable,
+            category: StateItemCategory::Excluded,
             value: self.base.read_proxy_env_vars(),
             collected_at: now.to_string(),
-            classification_reason: "Environment variables, restorable via shell".to_string(),
+            classification_reason: "Service lifecycle overlay, not baseline-managed".to_string(),
         });
 
         // wsl-git-proxy
@@ -187,8 +187,8 @@ impl<E: ShellExecutor + Send + Sync> PlatformAdapter for WslAdapter<E> {
         vec![
             StateItemDefinition {
                 id: ID_PROXY_ENV.to_string(),
-                category: StateItemCategory::Restorable,
-                description: "Proxy environment variables (http_proxy, https_proxy, no_proxy)"
+                category: StateItemCategory::Excluded,
+                description: "Proxy environment variables — managed by service lifecycle, not baseline"
                     .to_string(),
             },
             StateItemDefinition {
@@ -392,14 +392,14 @@ mod tests {
     }
 
     #[test]
-    fn definitions_have_four_restorable() {
+    fn definitions_have_three_restorable() {
         let adapter = WslAdapter::new(base_mock());
         let restorable_count = adapter
             .state_item_definitions()
             .iter()
             .filter(|d| d.category == StateItemCategory::Restorable)
             .count();
-        assert_eq!(restorable_count, 4);
+        assert_eq!(restorable_count, 3);
     }
 
     #[test]

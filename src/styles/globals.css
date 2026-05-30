@@ -161,6 +161,11 @@ body {
   border: none;
 }
 
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-primary {
   background-color: var(--color-primary);
   color: white;

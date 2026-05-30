@@ -56,7 +56,7 @@ fn wsl_adapter_full_lifecycle() {
     let defs = wsl_adapter.state_item_definitions();
     assert_eq!(defs.len(), 7, "WslAdapter should define 7 state items");
     let restorable = defs.iter().filter(|d| d.category == StateItemCategory::Restorable).count();
-    assert_eq!(restorable, 4, "WslAdapter should have 4 restorable items");
+    assert_eq!(restorable, 3, "WslAdapter should have 3 restorable items");
 
     // Step 2: Use BaselineManager with WslAdapter.
     let mgr = setup_baseline_with_adapters(dir.path(), vec![wsl_adapter]);
@@ -102,7 +102,7 @@ fn linux_adapter_full_lifecycle() {
     let defs = linux_adapter.state_item_definitions();
     assert_eq!(defs.len(), 6, "LinuxAdapter should define 6 state items");
     let restorable = defs.iter().filter(|d| d.category == StateItemCategory::Restorable).count();
-    assert_eq!(restorable, 4, "LinuxAdapter should have 4 restorable items");
+    assert_eq!(restorable, 3, "LinuxAdapter should have 3 restorable items");
 
     // Step 2: Use BaselineManager with LinuxAdapter.
     let mgr = setup_baseline_with_adapters(dir.path(), vec![linux_adapter]);
@@ -120,9 +120,9 @@ fn linux_adapter_full_lifecycle() {
     // Step 5: State summary reflects correct category counts.
     let summary = cmds::get_state_summary(&mgr).expect("summary");
     assert_eq!(summary.total, 6);
-    assert_eq!(summary.restorable_count, 4);
+    assert_eq!(summary.restorable_count, 3);
     assert_eq!(summary.detectable_count, 2);
-    assert_eq!(summary.excluded_count, 0);
+    assert_eq!(summary.excluded_count, 1);
 
     // Step 6: Restore to baseline.
     let result = mgr.restore_to_baseline().expect("restore");
@@ -480,8 +480,8 @@ fn wsl_adapter_read_items_have_consistent_structure() {
         assert!(!item.id.is_empty(), "Item id should not be empty");
         assert!(!item.collected_at.is_empty(), "Item {} should have a timestamp", item.id);
         assert!(
-            matches!(item.category, StateItemCategory::Restorable | StateItemCategory::Detectable),
-            "Item {} should be Restorable or Detectable",
+            matches!(item.category, StateItemCategory::Restorable | StateItemCategory::Detectable | StateItemCategory::Excluded),
+            "Item {} should be Restorable, Detectable, or Excluded",
             item.id
         );
     }
@@ -499,8 +499,8 @@ fn linux_adapter_read_items_have_consistent_structure() {
         assert!(!item.id.is_empty(), "Item id should not be empty");
         assert!(!item.collected_at.is_empty(), "Item {} should have a timestamp", item.id);
         assert!(
-            matches!(item.category, StateItemCategory::Restorable | StateItemCategory::Detectable),
-            "Item {} should be Restorable or Detectable",
+            matches!(item.category, StateItemCategory::Restorable | StateItemCategory::Detectable | StateItemCategory::Excluded),
+            "Item {} should be Restorable, Detectable, or Excluded",
             item.id
         );
     }

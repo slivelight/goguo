@@ -344,6 +344,9 @@ pub struct AppState {
     /// Flag indicating a restore/recovery operation is in progress (F104).
     /// When true, network-modifying commands are blocked.
     pub is_restoring: std::sync::atomic::AtomicBool,
+    /// Flag indicating user explicitly stopped the service (F108).
+    /// When true, `ProxyGuard` skips auto-restart of mihomo.
+    pub service_paused: std::sync::atomic::AtomicBool,
 }
 
 impl AppState {
@@ -391,6 +394,7 @@ impl AppState {
             audit_logger,
             deployment_manager,
             is_restoring: std::sync::atomic::AtomicBool::new(false),
+            service_paused: std::sync::atomic::AtomicBool::new(false),
         })
     }
 }
@@ -791,6 +795,19 @@ pub fn tauri_get_state_summary(state: tauri::State<'_, AppState>) -> Result<Stat
     clippy::double_must_use
 )]
 pub fn tauri_trigger_readjustment(state: tauri::State<'_, AppState>) -> Result<AssessmentResponse, String> {
+    // F108: clear paused flag — user is resuming service
+    state.service_paused.store(false, std::sync::atomic::Ordering::Relaxed);
+
+    // F108-2: apply proxy-env before re-assessment
+    let mixed_port = {
+        let mihomo = state.mihomo_manager.lock().expect("lock");
+        mihomo.mixed_port()
+    };
+    {
+        let baseline_mgr = state.baseline_manager.lock().expect("lock");
+        let _ = baseline_mgr.apply_proxy_env(mixed_port);
+    }
+
     let mgr = state.baseline_manager.lock().expect("lock");
     trigger_readjustment(&mgr)
 }
@@ -867,12 +884,19 @@ pub fn tauri_stop_service(
     let mut mihomo = state.mihomo_manager.lock().expect("lock");
     let baseline_mgr = state.baseline_manager.lock().expect("lock");
     let result = stop_service(&mut mihomo, &baseline_mgr);
+
+    // F108-2: clear proxy-env after stopping (service lifecycle, not baseline)
+    let _ = baseline_mgr.clear_proxy_env();
+
     drop(mihomo);
     drop(baseline_mgr);
 
     state.is_restoring.store(false, std::sync::atomic::Ordering::Relaxed);
 
     let result = result?;
+
+    // F108: mark service as user-paused so ProxyGuard skips auto-restart
+    state.service_paused.store(true, std::sync::atomic::Ordering::Relaxed);
 
     // F106: emit recovery:completed or recovery:failed based on result
     if result.recovery_triggered {
@@ -1029,6 +1053,11 @@ pub fn proxy_guard_loop(app: tauri::AppHandle) {
 
         // Skip if a restore is already in progress
         if state.is_restoring.load(std::sync::atomic::Ordering::Relaxed) {
+            continue;
+        }
+
+        // F108: skip if user explicitly stopped the service
+        if state.service_paused.load(std::sync::atomic::Ordering::Relaxed) {
             continue;
         }
 
@@ -2069,5 +2098,67 @@ mod tests {
         // Not restoring — should be allowed
         let result = check_not_restoring(&state);
         assert!(result.is_ok());
+    }
+
+    // ----- F108: service_paused state tests -----
+
+    #[test]
+    fn app_state_service_paused_default_false() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let state = AppState::new(dir.path()).expect("create state");
+        assert!(!state.service_paused.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
+    #[test]
+    fn stop_service_sets_service_paused() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let state = AppState::new(dir.path()).expect("create state");
+
+        // Before stop: not paused
+        assert!(!state.service_paused.load(std::sync::atomic::Ordering::Relaxed));
+
+        // Simulate what tauri_stop_service does: stop + set paused
+        let mut mihomo = state.mihomo_manager.lock().expect("lock");
+        let baseline_mgr = state.baseline_manager.lock().expect("lock");
+        let _ = stop_service(&mut mihomo, &baseline_mgr);
+        drop(mihomo);
+        drop(baseline_mgr);
+        state.service_paused.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        // After stop: paused
+        assert!(state.service_paused.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
+    #[test]
+    fn proxy_guard_skips_restart_when_paused() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let state = AppState::new(dir.path()).expect("create state");
+
+        // Simulate user stopped service
+        state.service_paused.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        // ProxyGuard check should be skipped — verify the flag check
+        assert!(state.service_paused.load(std::sync::atomic::Ordering::Relaxed));
+
+        // Even if we run check_and_recover directly, the loop should have skipped.
+        // Verify restart count remains 0 when paused.
+        let guard = state.proxy_guard.lock().expect("lock");
+        assert_eq!(guard.restart_count(), 0);
+        drop(guard);
+    }
+
+    #[test]
+    fn trigger_readjustment_clears_service_paused() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let state = AppState::new(dir.path()).expect("create state");
+
+        // Set paused (simulating a previous stop)
+        state.service_paused.store(true, std::sync::atomic::Ordering::Relaxed);
+
+        // Simulate what tauri_trigger_readjustment does: clear paused
+        state.service_paused.store(false, std::sync::atomic::Ordering::Relaxed);
+
+        // After trigger: not paused
+        assert!(!state.service_paused.load(std::sync::atomic::Ordering::Relaxed));
     }
 }

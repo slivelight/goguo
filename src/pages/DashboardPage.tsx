@@ -13,6 +13,7 @@ import { startInitialAssessment, confirmBaseline, triggerReadjustment, stopServi
 function DashboardPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'restore' | 'stop' | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { mihomoRunning, proxyGuardRestartCount, fetchServiceStatus } = useServiceStore();
@@ -106,9 +107,17 @@ function DashboardPage() {
           </p>
           <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
             {!hasBaseline && (
-              <button className="btn btn-secondary" disabled={isRestoring} onClick={async () => {
-                await startInitialAssessment();
-                fetchBaselineStatus();
+              <button className="btn btn-secondary" disabled={isRestoring || isLoading} onClick={async () => {
+                try {
+                  setIsLoading(true);
+                  await startInitialAssessment();
+                  fetchBaselineStatus();
+                } catch (err) {
+                  console.error('[Dashboard] startInitialAssessment failed:', err);
+                  alert(`评估失败: ${err instanceof Error ? err.message : String(err)}`);
+                } finally {
+                  setIsLoading(false);
+                }
               }}>
                 开始评估
               </button>
@@ -141,7 +150,7 @@ function DashboardPage() {
       <div className="card">
         <div className="card-header">快捷操作</div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-primary" onClick={handleRestoreClick} disabled={isRestoring}>
+          <button className="btn btn-primary" onClick={handleRestoreClick} disabled={isRestoring || !hasBaseline || (mihomoRunning && getDeviatedCount() === 0)}>
             立即恢复
           </button>
           {mihomoRunning && (

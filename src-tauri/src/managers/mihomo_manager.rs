@@ -124,6 +124,12 @@ impl MihomoManager {
         }
     }
 
+    /// Get the configured mixed (SOCKS5 + HTTP) proxy port.
+    #[must_use]
+    pub const fn mixed_port(&self) -> u16 {
+        self.config.mixed_port
+    }
+
     /// Start the mihomo subprocess and wait for its API to become ready.
     ///
     /// If the API port is already responding (a mihomo instance is already
@@ -491,9 +497,9 @@ mod tests {
     // --- F107: Adopt existing mihomo process tests ---
 
     /// Helper: bind to port 0 (OS-assigned free port), return the listener
-    /// and a MihomoConfig pointing at that port.
+    /// and a `MihomoConfig` pointing at that port.
     struct FakeApi {
-        _listener: std::net::TcpListener,
+        listener: std::net::TcpListener,
         config: MihomoConfig,
     }
 
@@ -512,7 +518,7 @@ mod tests {
                 log_level: "warning".to_string(),
             };
             Self {
-                _listener: listener,
+                listener,
                 config,
             }
         }
@@ -545,7 +551,7 @@ mod tests {
         assert!(mgr.process.is_none());
 
         // The fake API listener is still alive (not killed).
-        assert!(fake._listener.local_addr().is_ok());
+        assert!(fake.listener.local_addr().is_ok());
     }
 
     #[test]

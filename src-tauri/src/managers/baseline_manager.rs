@@ -381,6 +381,62 @@ impl BaselineManager {
             details,
         }
     }
+
+    /// Clear proxy environment variables from the system.
+    ///
+    /// Finds the adapter that owns a proxy-env item and writes empty values,
+    /// effectively removing all proxy lines from `/etc/environment`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a string describing the failure if the adapter cannot write.
+    pub fn clear_proxy_env(&self) -> Result<(), String> {
+        self.write_proxy_env_values("", "", "")
+    }
+
+    /// Apply proxy environment variables to the system.
+    ///
+    /// Writes the proxy address (constructed from `mixed_port`) into
+    /// `/etc/environment` via the adapter's `write_state` method.
+    ///
+    /// # Errors
+    ///
+    /// Returns a string describing the failure if the adapter cannot write.
+    pub fn apply_proxy_env(&self, mixed_port: u16) -> Result<(), String> {
+        let proxy_url = format!("http://127.0.0.1:{mixed_port}");
+        self.write_proxy_env_values(&proxy_url, &proxy_url, "localhost,127.0.0.1,::1")
+    }
+
+    /// Internal helper: write proxy-env values via adapter.
+    fn write_proxy_env_values(
+        &self,
+        http: &str,
+        https: &str,
+        no_proxy: &str,
+    ) -> Result<(), String> {
+        let value = serde_json::json!({
+            "http_proxy": http,
+            "https_proxy": https,
+            "no_proxy": no_proxy,
+        });
+
+        for adapter in &self.adapters {
+            let defs = adapter.state_item_definitions();
+            let proxy_def = defs.iter().find(|d| d.id.contains("proxy-env"));
+            if let Some(def) = proxy_def {
+                let item = StateItem {
+                    id: def.id.clone(),
+                    platform: Platform::Wsl,
+                    category: StateItemCategory::Excluded,
+                    value,
+                    collected_at: String::new(),
+                    classification_reason: String::new(),
+                };
+                return adapter.write_state(&item);
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Result of a restore-to-baseline operation.

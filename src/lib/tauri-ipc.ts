@@ -21,63 +21,63 @@ import type {
 } from './types';
 
 export async function startInitialAssessment(): Promise<AssessmentResponse> {
-  return invoke('start_initial_assessment');
+  return invoke('tauri_start_initial_assessment');
 }
 
 export async function getStateSummary(): Promise<StateSummaryResponse> {
-  return invoke('get_state_summary');
+  return invoke('tauri_get_state_summary');
 }
 
 export async function triggerReadjustment(): Promise<AssessmentResponse> {
-  return invoke('trigger_readjustment');
+  return invoke('tauri_trigger_readjustment');
 }
 
 export async function confirmBaseline(): Promise<AssessmentResponse> {
-  return invoke('confirm_baseline');
+  return invoke('tauri_confirm_baseline');
 }
 
 export async function getBaselineStatus(): Promise<BaselineStatusResponse> {
-  return invoke('get_baseline_status');
+  return invoke('tauri_get_baseline_status');
 }
 
 export async function stopService(): Promise<void> {
-  return invoke('stop_service');
+  return invoke('tauri_stop_service');
 }
 
 export async function getServiceStatus(): Promise<ServiceStatusResponse> {
-  return invoke('get_service_status');
+  return invoke('tauri_get_service_status');
 }
 
 export async function getRecoveryProgress(): Promise<RecoveryProgressResponse> {
-  return invoke('get_recovery_progress');
+  return invoke('tauri_get_recovery_progress');
 }
 
 export async function getIsRestoring(): Promise<boolean> {
-  return invoke('get_is_restoring');
+  return invoke('tauri_get_is_restoring');
 }
 
 export async function getAuditLog(params?: AuditLogParams): Promise<AuditLogResponse> {
-  return invoke('get_audit_log', { params });
+  return invoke('tauri_get_audit_log', { params });
 }
 
 export async function detectDeploymentMode(): Promise<DeploymentModeResponse> {
-  return invoke('detect_deployment_mode');
+  return invoke('tauri_detect_deployment_mode');
 }
 
 export async function getDeploymentMode(): Promise<DeploymentModeResponse> {
-  return invoke('get_deployment_mode');
+  return invoke('tauri_get_deployment_mode');
 }
 
 export async function setDeploymentMode(mode: string): Promise<DeploymentModeResponse> {
-  return invoke('set_deployment_mode', { mode });
+  return invoke('tauri_set_deployment_mode', { mode });
 }
 
 export async function getWslStatus(): Promise<WslStatusResponse> {
-  return invoke('get_wsl_status');
+  return invoke('tauri_get_wsl_status');
 }
 
 export async function getNetworkMode(): Promise<NetworkModeResponse> {
-  return invoke('get_network_mode');
+  return invoke('tauri_get_network_mode');
 }
 
 export async function addTargetSite(siteId: string): Promise<AddSiteResponse> {
