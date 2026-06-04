@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import RulesPage from '../RulesPage';
 import * as ruleStore from '../../stores/rule-store';
 import * as notifStore from '../../stores/notif-store';
@@ -69,5 +69,66 @@ describe('RulesPage', () => {
 
     render(<RulesPage />);
     expect(screen.getByText('规则总数: 2')).toBeDefined();
+  });
+
+  it('renders rule group header as button element', () => {
+    vi.mocked(ruleStore.useRuleStore).mockReturnValue({
+      rules: [],
+      previewData: ['DOMAIN-SUFFIX,github.com,proxy', 'DOMAIN-SUFFIX,npmjs.com,direct'],
+      preview: vi.fn(),
+      apply: vi.fn(),
+      isLoading: false,
+    } as unknown as ReturnType<typeof ruleStore.useRuleStore>);
+
+    render(<RulesPage />);
+    // Group header should be a <button> element (WebKitGTK compatible)
+    const groupButtons = screen.getAllByRole('button').filter(b =>
+      b.textContent?.includes('条规则')
+    );
+    expect(groupButtons.length).toBeGreaterThan(0);
+    // Verify it's actually a button element
+    expect(groupButtons[0].tagName).toBe('BUTTON');
+  });
+
+  it('shows strategy badge for proxy rules', () => {
+    vi.mocked(ruleStore.useRuleStore).mockReturnValue({
+      rules: [],
+      previewData: ['DOMAIN-SUFFIX,github.com,proxy'],
+      preview: vi.fn(),
+      apply: vi.fn(),
+      isLoading: false,
+    } as unknown as ReturnType<typeof ruleStore.useRuleStore>);
+
+    render(<RulesPage />);
+    expect(screen.getByText('代理')).toBeDefined();
+  });
+
+  it('shows strategy badge for direct rules', () => {
+    vi.mocked(ruleStore.useRuleStore).mockReturnValue({
+      rules: [],
+      previewData: ['DOMAIN-SUFFIX,wikipedia.org,direct'],
+      preview: vi.fn(),
+      apply: vi.fn(),
+      isLoading: false,
+    } as unknown as ReturnType<typeof ruleStore.useRuleStore>);
+
+    render(<RulesPage />);
+    expect(screen.getByText('直连')).toBeDefined();
+  });
+
+  it('clicking group header toggles collapse', () => {
+    vi.mocked(ruleStore.useRuleStore).mockReturnValue({
+      rules: [],
+      previewData: ['DOMAIN-SUFFIX,github.com,proxy', 'DOMAIN-SUFFIX,npmjs.com,proxy'],
+      preview: vi.fn(),
+      apply: vi.fn(),
+      isLoading: false,
+    } as unknown as ReturnType<typeof ruleStore.useRuleStore>);
+
+    render(<RulesPage />);
+    const groupBtn = screen.getAllByRole('button').find(b => b.textContent?.includes('条规则'));
+    expect(groupBtn).toBeDefined();
+    // Click should toggle - no crash
+    if (groupBtn) fireEvent.click(groupBtn);
   });
 });

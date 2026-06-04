@@ -307,12 +307,40 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
 
     fn read_state_items(&self) -> Vec<StateItem> {
         let now = Self::now_iso();
+
+        // Spawn scoped threads for concurrent powershell.exe invocations.
+        // Each call takes ~1.5s; sequential would be ~13.5s, concurrent ~1.5s.
+        let (hosts, system_proxy, pac, http_proxy, dns_cache, dns_servers, proxy_processes, tun_status, wslconfig) =
+            std::thread::scope(|s| {
+                let t_hosts = s.spawn(|| self.read_hosts());
+                let t_sys = s.spawn(|| self.read_system_proxy());
+                let t_pac = s.spawn(|| self.read_pac());
+                let t_http = s.spawn(|| self.read_http_proxy());
+                let t_dns_cache = s.spawn(|| self.read_dns_cache());
+                let t_dns_srv = s.spawn(|| self.read_dns_servers());
+                let t_procs = s.spawn(|| self.read_proxy_processes());
+                let t_tun = s.spawn(|| self.read_tun_status());
+                let t_wsl = s.spawn(|| self.read_wslconfig());
+
+                (
+                    t_hosts.join().expect("read_hosts panicked"),
+                    t_sys.join().expect("read_system_proxy panicked"),
+                    t_pac.join().expect("read_pac panicked"),
+                    t_http.join().expect("read_http_proxy panicked"),
+                    t_dns_cache.join().expect("read_dns_cache panicked"),
+                    t_dns_srv.join().expect("read_dns_servers panicked"),
+                    t_procs.join().expect("read_proxy_processes panicked"),
+                    t_tun.join().expect("read_tun_status panicked"),
+                    t_wsl.join().expect("read_wslconfig panicked"),
+                )
+            });
+
         vec![
             StateItem {
                 id: ID_HOSTS.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Restorable,
-                value: self.read_hosts(),
+                value: hosts,
                 collected_at: now.clone(),
                 classification_reason: "File, restorable via remote write".to_string(),
             },
@@ -320,7 +348,7 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
                 id: ID_SYSTEM_PROXY.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Restorable,
-                value: self.read_system_proxy(),
+                value: system_proxy,
                 collected_at: now.clone(),
                 classification_reason: "Registry, restorable via powershell.exe".to_string(),
             },
@@ -328,7 +356,7 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
                 id: ID_PAC.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Restorable,
-                value: self.read_pac(),
+                value: pac,
                 collected_at: now.clone(),
                 classification_reason: "Registry, restorable via powershell.exe".to_string(),
             },
@@ -336,7 +364,7 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
                 id: ID_HTTP_PROXY.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Detectable,
-                value: self.read_http_proxy(),
+                value: http_proxy,
                 collected_at: now.clone(),
                 classification_reason: "Command output, detectable only".to_string(),
             },
@@ -344,7 +372,7 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
                 id: ID_DNS_CACHE.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Detectable,
-                value: self.read_dns_cache(),
+                value: dns_cache,
                 collected_at: now.clone(),
                 classification_reason: "Command output, detectable only".to_string(),
             },
@@ -352,7 +380,7 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
                 id: ID_DNS_SERVERS.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Detectable,
-                value: self.read_dns_servers(),
+                value: dns_servers,
                 collected_at: now.clone(),
                 classification_reason: "Command output, detectable only".to_string(),
             },
@@ -360,7 +388,7 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
                 id: ID_PROXY_PROCESSES.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Detectable,
-                value: self.read_proxy_processes(),
+                value: proxy_processes,
                 collected_at: now.clone(),
                 classification_reason: "Process scan, detectable only".to_string(),
             },
@@ -368,7 +396,7 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
                 id: ID_TUN_STATUS.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Detectable,
-                value: self.read_tun_status(),
+                value: tun_status,
                 collected_at: now.clone(),
                 classification_reason: "Adapter detection, detectable only".to_string(),
             },
@@ -376,7 +404,7 @@ impl<E: CommandExecutor + Send + Sync> PlatformAdapter for WindowsRemoteAdapter<
                 id: ID_WSL2_NETWORK_MODE.to_string(),
                 platform: Platform::Windows,
                 category: StateItemCategory::Restorable,
-                value: self.read_wslconfig(),
+                value: wslconfig,
                 collected_at: now,
                 classification_reason: "File, restorable via remote write".to_string(),
             },

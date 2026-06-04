@@ -8,16 +8,21 @@ import StatusBadge from '../components/shared/StatusBadge';
 import NotifBar from '../components/shared/NotifBar';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
 import RecoveryOverlay from '../components/shared/RecoveryOverlay';
-import { startInitialAssessment, confirmBaseline, triggerReadjustment, stopService } from '../lib/tauri-ipc';
+import BaselineReviewDialog from '../components/shared/BaselineReviewDialog';
+import { confirmBaseline, triggerReadjustment, stopService, getWslStatus, getNetworkMode } from '../lib/tauri-ipc';
+import type { WslStatusResponse, NetworkModeResponse } from '../lib/types';
 
 function DashboardPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'restore' | 'stop' | null>(null);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [wslInfo, setWslInfo] = useState<WslStatusResponse | null>(null);
+  const [networkInfo, setNetworkInfo] = useState<NetworkModeResponse | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { mihomoRunning, proxyGuardRestartCount, fetchServiceStatus } = useServiceStore();
-  const { hasBaseline, items, getDeviatedCount, getMatchCount, fetchBaselineStatus } = useBaselineStore();
+  const { hasBaseline, itemCount, stateSummary, snapshotItems, getDeviatedCount, getMatchCount, fetchBaselineStatus, startAssessment, resetAssessment } = useBaselineStore();
   const { notifications } = useNotifStore();
   const { reachability, fetchReachability } = useDiagStore();
   const { isRestoring, progress, fetchRecoveryStatus } = useRecoveryStore();
@@ -29,7 +34,18 @@ function DashboardPage() {
     fetchBaselineStatus();
     fetchReachability();
     fetchRecoveryStatus();
+    loadEnvironmentInfo();
   }, []);
+
+  const loadEnvironmentInfo = async () => {
+    try {
+      const [wsl, network] = await Promise.all([getWslStatus(), getNetworkMode()]);
+      setWslInfo(wsl);
+      setNetworkInfo(network);
+    } catch {
+      // environment info is non-critical
+    }
+  };
 
   // Poll recovery status when restoring
   useEffect(() => {
@@ -107,26 +123,31 @@ function DashboardPage() {
           </p>
           <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
             {!hasBaseline && (
-              <button className="btn btn-secondary" disabled={isRestoring || isLoading} onClick={async () => {
-                try {
-                  setIsLoading(true);
-                  await startInitialAssessment();
-                  fetchBaselineStatus();
-                } catch (err) {
-                  console.error('[Dashboard] startInitialAssessment failed:', err);
-                  alert(`评估失败: ${err instanceof Error ? err.message : String(err)}`);
-                } finally {
-                  setIsLoading(false);
-                }
-              }}>
+              <button
+                id="btn-assess"
+                className="btn btn-secondary"
+                disabled={isRestoring || isLoading}
+                onClick={async () => {
+                  const btn = document.getElementById('btn-assess') as HTMLButtonElement | null;
+                  try {
+                    if (btn) { btn.textContent = '评估中...'; btn.disabled = true; }
+                    setIsLoading(true);
+                    await new Promise<void>(r => setTimeout(r, 100));
+                    await startAssessment();
+                    setShowReviewDialog(true);
+                  } catch (err) {
+                    console.error('[Dashboard] startAssessment failed:', err);
+                    alert(`评估失败: ${err instanceof Error ? err.message : String(err)}`);
+                  } finally {
+                    if (btn) { btn.textContent = '开始评估'; btn.disabled = false; }
+                    setIsLoading(false);
+                  }
+                }}>
                 开始评估
               </button>
             )}
-            {!hasBaseline && items.length > 0 && (
-              <button className="btn btn-primary" disabled={isRestoring} onClick={async () => {
-                await confirmBaseline();
-                fetchBaselineStatus();
-              }}>
+            {!hasBaseline && (itemCount ?? 0) > 0 && (
+              <button className="btn btn-primary" disabled={isRestoring} onClick={() => setShowReviewDialog(true)}>
                 确认 Baseline
               </button>
             )}
@@ -146,6 +167,28 @@ function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {wslInfo && (
+        <div className="card">
+          <div className="card-header">环境信息</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '14px' }}>
+            <div>
+              <span style={{ color: 'var(--color-text-secondary)' }}>运行环境: </span>
+              <span style={{ fontWeight: '600' }}>{wslInfo.is_wsl ? `WSL${wslInfo.distro_name ? ` (${wslInfo.distro_name})` : ''}` : '原生 Linux/Windows'}</span>
+            </div>
+            <div>
+              <span style={{ color: 'var(--color-text-secondary)' }}>网络模式: </span>
+              <span style={{ fontWeight: '600' }}>{wslInfo.network_mode}</span>
+            </div>
+            {networkInfo && (
+              <div>
+                <span style={{ color: 'var(--color-text-secondary)' }}>代理策略: </span>
+                <span style={{ fontWeight: '600' }}>{networkInfo.proxy_strategy}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <div className="card-header">快捷操作</div>
@@ -171,8 +214,8 @@ function DashboardPage() {
       <ConfirmDialog
         isOpen={showConfirmDialog}
         title={confirmAction === 'restore' ? '确认恢复' : '确认停止服务'}
-        message={confirmAction === 'restore' 
-          ? '将恢复到 Baseline 状态，确认执行？' 
+        message={confirmAction === 'restore'
+          ? '将恢复到 Baseline 状态，确认执行？'
           : '停止服务将恢复到 Baseline，确认？'}
         confirmText="确认"
         danger={confirmAction === 'stop'}
@@ -182,6 +225,28 @@ function DashboardPage() {
           setConfirmAction(null);
         }}
       />
+
+      {stateSummary && (
+        <BaselineReviewDialog
+          isOpen={showReviewDialog}
+          summary={stateSummary}
+          items={snapshotItems}
+          onConfirm={async () => {
+            try {
+              await confirmBaseline();
+            } catch (err) {
+              console.error('[Dashboard] confirmBaseline failed:', err);
+              alert(`确认失败: ${err instanceof Error ? err.message : String(err)}`);
+            }
+            setShowReviewDialog(false);
+            fetchBaselineStatus();
+          }}
+          onCancel={() => {
+            setShowReviewDialog(false);
+            resetAssessment();
+          }}
+        />
+      )}
     </div>
   );
 }

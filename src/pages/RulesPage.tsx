@@ -17,9 +17,16 @@ function extractSiteKey(domain: string): string {
   return key || domain;
 }
 
+/** Extract strategy from a rule line like "DOMAIN-SUFFIX,github.com,proxy" → "proxy" */
+function extractStrategy(ruleLine: string): string {
+  const segments = ruleLine.split(',');
+  return segments.length >= 3 ? segments[segments.length - 1].trim().toLowerCase() : '';
+}
+
 interface RuleGroup {
   siteKey: string;
   rules: string[];
+  strategy: string;
 }
 
 function groupRulesBySite(previewData: string[]): RuleGroup[] {
@@ -38,7 +45,8 @@ function groupRulesBySite(previewData: string[]): RuleGroup[] {
 
   const groups: RuleGroup[] = [];
   for (const [siteKey, rules] of groupMap) {
-    groups.push({ siteKey, rules });
+    const strategy = extractStrategy(rules[0]);
+    groups.push({ siteKey, rules, strategy });
   }
 
   // Sort by rule count descending
@@ -97,17 +105,21 @@ function RulesPage() {
           <div>
             {ruleGroups.map((group) => {
               const isCollapsed = collapsedGroups.has(group.siteKey);
+              const strategyLabel = group.strategy === 'proxy' ? '代理' : group.strategy === 'direct' ? '直连' : group.strategy;
+              const strategyColor = group.strategy === 'proxy' ? 'var(--color-success, #22c55e)' : group.strategy === 'direct' ? 'var(--color-text-secondary, #888)' : 'var(--color-warning, #f59e0b)';
               return (
                 <div key={group.siteKey} style={{ marginBottom: '12px' }}>
-                  <div
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
                     onClick={() => toggleGroup(group.siteKey)}
                     style={{
-                      cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
                       padding: '8px',
-                      background: 'var(--color-bg-secondary, #f5f5f5)',
+                      width: '100%',
+                      textAlign: 'left',
                       borderRadius: '6px',
                       marginBottom: isCollapsed ? '0' : '8px',
                       userSelect: 'none',
@@ -122,7 +134,17 @@ function RulesPage() {
                     <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>
                       ({group.rules.length} 条规则)
                     </span>
-                  </div>
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      background: strategyColor,
+                      color: '#fff',
+                      fontWeight: '600',
+                    }}>
+                      {strategyLabel}
+                    </span>
+                  </button>
                   {!isCollapsed && (
                     <CodeBlock
                       code={group.rules.join('\n')}

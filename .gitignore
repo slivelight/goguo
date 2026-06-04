@@ -236,3 +236,6 @@ target/doc/
 *.tar.gz
 *.rar
 *.7z
+
+# 开发模式 install_root
+release/

@@ -348,6 +348,8 @@ mod tests {
         base_mock().with_output(
             "curl",
             &[
+                "--noproxy",
+                "*",
                 "-s",
                 "-o",
                 "/dev/null",

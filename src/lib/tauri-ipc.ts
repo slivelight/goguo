@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
   AssessmentResponse,
   StateSummaryResponse,
+  SnapshotItem,
   BaselineStatusResponse,
   ServiceStatusResponse,
   RecoveryProgressResponse,
@@ -18,6 +19,9 @@ import type {
   NodePoolStatus,
   SubscriptionResponse,
   SubscriptionSource,
+  SiteDefinitionInfo,
+  CreateSiteResponse,
+  UpdateSiteDomainsResponse,
 } from './types';
 
 export async function startInitialAssessment(): Promise<AssessmentResponse> {
@@ -26,6 +30,10 @@ export async function startInitialAssessment(): Promise<AssessmentResponse> {
 
 export async function getStateSummary(): Promise<StateSummaryResponse> {
   return invoke('tauri_get_state_summary');
+}
+
+export async function getSnapshotDetails(): Promise<SnapshotItem[]> {
+  return invoke('tauri_get_snapshot_details');
 }
 
 export async function triggerReadjustment(): Promise<AssessmentResponse> {
@@ -122,4 +130,20 @@ export async function importSubscription(url: string): Promise<SubscriptionRespo
 
 export async function getSubscriptionSources(): Promise<SubscriptionSource[]> {
   return invoke('get_subscription_sources');
+}
+
+export async function listSiteDefinitions(): Promise<SiteDefinitionInfo[]> {
+  return invoke('list_site_definitions');
+}
+
+export async function lookupSite(input: string): Promise<SiteDefinitionInfo | null> {
+  return invoke('lookup_site', { input });
+}
+
+export async function createSite(name: string, displayName: string, domains: string[]): Promise<CreateSiteResponse> {
+  return invoke('tauri_create_site', { name, displayName, domains });
+}
+
+export async function updateSiteDomains(siteId: string, addDomains: string[], removeDomains: string[]): Promise<UpdateSiteDomainsResponse> {
+  return invoke('tauri_update_site_domains', { siteId, addDomains, removeDomains });
 }

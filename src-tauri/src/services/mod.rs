@@ -7,6 +7,7 @@ pub mod rule_generator;
 pub mod rule_verifier;
 pub mod site_definition_store;
 pub mod subscription_parser;
+pub mod url_parser;
 
 #[cfg(target_os = "linux")]
 pub mod wsl_detector;

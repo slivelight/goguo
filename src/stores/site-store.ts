@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import type { SiteInfo, AddSiteResponse, RemoveSiteResponse, TemplateResponse, SiteReachability } from '../lib/types';
-import { addTargetSite, removeTargetSite, applyPresetTemplate, getSiteReachability } from '../lib/tauri-ipc';
+import type { SiteInfo, AddSiteResponse, RemoveSiteResponse, TemplateResponse, SiteReachability, SiteDefinitionInfo } from '../lib/types';
+import { addTargetSite, removeTargetSite, applyPresetTemplate, getSiteReachability, listSiteDefinitions } from '../lib/tauri-ipc';
 
 interface SiteState {
   sites: SiteInfo[];
+  siteDefinitions: SiteDefinitionInfo[];
   reachability: SiteReachability[];
   isLoading: boolean;
   error: string | null;
@@ -20,6 +21,7 @@ interface SiteActions {
 
 const initialState: SiteState = {
   sites: [],
+  siteDefinitions: [],
   reachability: [],
   isLoading: false,
   error: null,
@@ -31,14 +33,20 @@ export const useSiteStore = create<SiteState & SiteActions>((set) => ({
   fetchSites: async () => {
     set({ isLoading: true, error: null });
     try {
-      const reachability = await getSiteReachability();
-      const sites = reachability.sites.map((r) => ({
-        id: r.site_id,
-        name: r.site_id,
-        domain_count: 0,
-      }));
+      const [reachability, definitions] = await Promise.all([
+        getSiteReachability(),
+        listSiteDefinitions(),
+      ]);
+      const defMap = new Map(definitions.map(d => [d.id, d]));
+      const sites = reachability.sites.map((r) => {
+        const def = defMap.get(r.site_id);
+        return def
+          ? { id: def.id, name: def.name, domain_count: def.domain_count, domains: def.domains }
+          : { id: r.site_id, name: r.site_id, domain_count: 0, domains: {} };
+      });
       set({
         sites,
+        siteDefinitions: definitions,
         reachability: reachability.sites,
         isLoading: false,
       });

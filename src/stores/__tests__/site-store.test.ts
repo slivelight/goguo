@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSiteStore } from '../site-store';
-import { addTargetSite, removeTargetSite, applyPresetTemplate, getSiteReachability } from '../../lib/tauri-ipc';
+import { addTargetSite, removeTargetSite, applyPresetTemplate, getSiteReachability, listSiteDefinitions } from '../../lib/tauri-ipc';
 
 vi.mock('../../lib/tauri-ipc', () => ({
   addTargetSite: vi.fn(),
   removeTargetSite: vi.fn(),
   applyPresetTemplate: vi.fn(),
   getSiteReachability: vi.fn(),
+  listSiteDefinitions: vi.fn(),
 }));
 
 describe('site-store', () => {
@@ -30,19 +31,24 @@ describe('site-store', () => {
         { site_id: 'npm', reachable: true },
       ],
     });
+    vi.mocked(listSiteDefinitions).mockResolvedValue([
+      { id: 'github', name: 'GitHub', domain_count: 47, domains: { core: ['github.com'] } },
+      { id: 'npm', name: 'npm', domain_count: 3, domains: { core: ['npmjs.com'] } },
+    ]);
 
     await useSiteStore.getState().fetchSites();
 
     const state = useSiteStore.getState();
     expect(state.sites).toHaveLength(2);
-    expect(state.sites[0].id).toBe('github');
+    expect(state.sites[0].name).toBe('GitHub');
+    expect(state.sites[0].domain_count).toBe(47);
     expect(state.reachability).toHaveLength(2);
   });
 
   it('addSite adds site on success', async () => {
     vi.mocked(addTargetSite).mockResolvedValue({
       success: true,
-      site: { id: 'github', name: 'GitHub', domain_count: 5 },
+      site: { id: 'github', name: 'GitHub', domain_count: 5, domains: {} },
       rules_generated: 10,
       verification_passed: true,
     });
@@ -73,6 +79,9 @@ describe('site-store', () => {
     vi.mocked(getSiteReachability).mockResolvedValue({
       sites: [{ site_id: 'github', reachable: true }],
     });
+    vi.mocked(listSiteDefinitions).mockResolvedValue([
+      { id: 'github', name: 'GitHub', domain_count: 47, domains: { core: ['github.com'] } },
+    ]);
     vi.mocked(removeTargetSite).mockResolvedValue({
       success: true,
       remaining_sites: 0,

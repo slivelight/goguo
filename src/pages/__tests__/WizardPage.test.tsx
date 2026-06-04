@@ -24,6 +24,7 @@ vi.mock('../../lib/tauri-ipc', () => ({
   startInitialAssessment: vi.fn(),
   confirmBaseline: vi.fn(),
   applyPresetTemplate: vi.fn(),
+  addTargetSite: vi.fn(),
 }));
 
 describe('WizardPage', () => {
@@ -263,5 +264,85 @@ describe('WizardPage', () => {
     fireEvent.click(screen.getByText('开始使用'));
     expect(markComplete).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('applies developer template when all selected sites are developer subset', async () => {
+    const markComplete = vi.fn();
+    const nextStep = vi.fn();
+    vi.mocked(wizardStore.useWizardStore).mockReturnValue({
+      currentStep: 'site-selection',
+      deploymentMode: 'windows_only',
+      hasBaseline: true,
+      selectedSites: ['github', 'npm'],
+      completedSteps: ['deployment-mode', 'initial-assessment', 'baseline-confirm'],
+      nextStep,
+      prevStep: vi.fn(),
+      setDeploymentMode: vi.fn(),
+      setHasBaseline: vi.fn(),
+      selectSites: vi.fn(),
+      markComplete,
+    } as unknown as ReturnType<typeof wizardStore.useWizardStore>);
+
+    vi.mocked(ipc.applyPresetTemplate).mockResolvedValue({
+      added_count: 2,
+      failed_count: 0,
+      sites: ['github', 'npm'],
+    });
+
+    render(<WizardPage />);
+    fireEvent.click(screen.getByText('下一步'));
+
+    await vi.waitFor(() => {
+      expect(ipc.applyPresetTemplate).toHaveBeenCalledWith('developer');
+    });
+  });
+
+  it('adds sites individually when not matching template', async () => {
+    const markComplete = vi.fn();
+    vi.mocked(wizardStore.useWizardStore).mockReturnValue({
+      currentStep: 'site-selection',
+      deploymentMode: 'windows_only',
+      hasBaseline: true,
+      selectedSites: ['custom-site'],
+      completedSteps: ['deployment-mode', 'initial-assessment', 'baseline-confirm'],
+      nextStep: vi.fn(),
+      prevStep: vi.fn(),
+      setDeploymentMode: vi.fn(),
+      setHasBaseline: vi.fn(),
+      selectSites: vi.fn(),
+      markComplete,
+    } as unknown as ReturnType<typeof wizardStore.useWizardStore>);
+
+    vi.mocked(ipc.addTargetSite).mockResolvedValue({
+      success: true,
+      rules_generated: 1,
+      verification_passed: true,
+    });
+
+    render(<WizardPage />);
+    fireEvent.click(screen.getByText('下一步'));
+
+    await vi.waitFor(() => {
+      expect(ipc.addTargetSite).toHaveBeenCalledWith('custom-site');
+    });
+  });
+
+  it('shows impact description for deployment modes', () => {
+    vi.mocked(wizardStore.useWizardStore).mockReturnValue({
+      currentStep: 'deployment-mode',
+      deploymentMode: null,
+      hasBaseline: false,
+      selectedSites: [],
+      completedSteps: [],
+      nextStep: vi.fn(),
+      prevStep: vi.fn(),
+      setDeploymentMode: vi.fn(),
+      setHasBaseline: vi.fn(),
+      selectSites: vi.fn(),
+      markComplete: vi.fn(),
+    } as unknown as ReturnType<typeof wizardStore.useWizardStore>);
+
+    render(<WizardPage />);
+    expect(screen.getByText(/仅监控和管理 Windows 系统的代理配置/)).toBeDefined();
   });
 });

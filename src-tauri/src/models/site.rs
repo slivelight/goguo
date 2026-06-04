@@ -78,12 +78,58 @@ impl SiteDefinition {
             "github.com".to_string(),
             "github.io".to_string(),
             "githubusercontent.com".to_string(),
-        ]);
-        domains.insert(DomainCategory::Cdn, vec![
             "githubassets.com".to_string(),
+            "ghcr.io".to_string(),
+            "ssh.github.com".to_string(),
+            "lfs.github.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Api, vec![
+            "api.github.com".to_string(),
+            "uploads.github.com".to_string(),
+            "objects.githubusercontent.com".to_string(),
+            "graphql.github.com".to_string(),
+            "api.githubusercontent.com".to_string(),
+            "actions.githubusercontent.com".to_string(),
+            "pipelines.actions.githubusercontent.com".to_string(),
+            "artifactsv2.githubusercontent.com".to_string(),
+            "resultsv2.githubusercontent.com".to_string(),
+            "github-releases.githubusercontent.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Assets, vec![
+            "raw.githubusercontent.com".to_string(),
+            "codeload.github.com".to_string(),
+            "camo.githubusercontent.com".to_string(),
+            "cloud.githubusercontent.com".to_string(),
+            "avatars.githubusercontent.com".to_string(),
+            "user-images.githubusercontent.com".to_string(),
+            "media.githubusercontent.com".to_string(),
+            "private-user-images.githubusercontent.com".to_string(),
+            "marketplace-screenshots.githubusercontent.com".to_string(),
+            "desktop.githubusercontent.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Services, vec![
+            "gist.github.com".to_string(),
+            "pages.github.com".to_string(),
+            "vscode-auth.github.com".to_string(),
+            "education.github.com".to_string(),
+            "auth.github.com".to_string(),
+            "live.github.com".to_string(),
+            "packagist.githubusercontent.com".to_string(),
+            "favicons.githubusercontent.com".to_string(),
+            "copilot.github.com".to_string(),
+            "copilot-telemetry.githubusercontent.com".to_string(),
+            "copilot-proxy.githubusercontent.com".to_string(),
+            "githubcopilot.com".to_string(),
+            "origin-tracker.githubusercontent.com".to_string(),
+            "codespaces.githubusercontent.com".to_string(),
+            "githubcloudusercontent.com".to_string(),
         ]);
         domains.insert(DomainCategory::Packages, vec![
-            "ghcr.io".to_string(),
+            "npm.pkg.github.com".to_string(),
+            "maven.pkg.github.com".to_string(),
+            "nuget.pkg.github.com".to_string(),
+            "rubygems.pkg.github.com".to_string(),
+            "pypi.pkg.github.com".to_string(),
         ]);
 
         Self {
@@ -103,7 +149,8 @@ impl SiteDefinition {
         let mut domains = HashMap::new();
         domains.insert(DomainCategory::Core, vec![
             "npmjs.com".to_string(),
-            "npmjs.org".to_string(),
+            "registry.npmjs.org".to_string(),
+            "static.npmjs.com".to_string(),
         ]);
 
         Self {
@@ -123,7 +170,28 @@ impl SiteDefinition {
         let mut domains = HashMap::new();
         domains.insert(DomainCategory::Core, vec![
             "claude.ai".to_string(),
+            "claude.com".to_string(),
             "anthropic.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Api, vec![
+            "api.anthropic.com".to_string(),
+            "statsig.anthropic.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Cdn, vec![
+            "s-cdn.anthropic.com".to_string(),
+            "a-cdn.anthropic.com".to_string(),
+            "cdn.anthropic.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::ThirdParty, vec![
+            "intercom.io".to_string(),
+            "intercomcdn.com".to_string(),
+            "sentry.io".to_string(),
+            "statsigapi.net".to_string(),
+        ]);
+        domains.insert(DomainCategory::CrossDependency, vec![
+            "accounts.google.com".to_string(),
+            "fonts.googleapis.com".to_string(),
+            "fonts.gstatic.com".to_string(),
         ]);
 
         Self {
@@ -143,15 +211,34 @@ impl SiteDefinition {
         let mut domains = HashMap::new();
         domains.insert(DomainCategory::Core, vec![
             "chatgpt.com".to_string(),
+            "chat.openai.com".to_string(),
             "openai.com".to_string(),
+            "help.openai.com".to_string(),
+            "platform.openai.com".to_string(),
         ]);
         domains.insert(DomainCategory::Api, vec![
             "api.openai.com".to_string(),
+            "auth0.openai.com".to_string(),
+            "auth.openai.com".to_string(),
         ]);
         domains.insert(DomainCategory::Cdn, vec![
             "cdn.openai.com".to_string(),
             "oaistatic.com".to_string(),
             "oaiusercontent.com".to_string(),
+            "cdn.openaimerge.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::ThirdParty, vec![
+            "cdn.workos.com".to_string(),
+            "setup.workos.com".to_string(),
+            "challenges.cloudflare.com".to_string(),
+            "turnstile.cloudflare.com".to_string(),
+            "statsigapi.net".to_string(),
+            "statsig.com".to_string(),
+            "intercom.io".to_string(),
+            "intercomcdn.com".to_string(),
+            "sentry.io".to_string(),
+            "rum.browser-intake-datadoghq.com".to_string(),
+            "js.stripe.com".to_string(),
         ]);
 
         Self {
@@ -195,18 +282,33 @@ impl SiteDefinition {
         let mut domains = HashMap::new();
         domains.insert(DomainCategory::Core, vec![
             "google.com".to_string(),
+            "google.com.hk".to_string(),
             "googleapis.com".to_string(),
         ]);
-        domains.insert(DomainCategory::Services, vec![
-            "gmail.com".to_string(),
-            "googlemail.com".to_string(),
+        domains.insert(DomainCategory::Api, vec![
+            "accounts.google.com".to_string(),
         ]);
         domains.insert(DomainCategory::Cdn, vec![
             "gstatic.com".to_string(),
+            "googleusercontent.com".to_string(),
+            "fonts.googleapis.com".to_string(),
+            "fonts.gstatic.com".to_string(),
+            "ajax.googleapis.com".to_string(),
+            "apis.google.com".to_string(),
         ]);
-        domains.insert(DomainCategory::CrossDependency, vec![
-            "ytimg.com".to_string(),
+        domains.insert(DomainCategory::Services, vec![
             "youtube.com".to_string(),
+            "ytimg.com".to_string(),
+            "yt3.ggpht.com".to_string(),
+            "gmail.com".to_string(),
+            "drive.google.com".to_string(),
+            "maps.google.com".to_string(),
+            "play.google.com".to_string(),
+            "scholar.google.com".to_string(),
+            "google-analytics.com".to_string(),
+            "googletagmanager.com".to_string(),
+            "doubleclick.net".to_string(),
+            "googlesyndication.com".to_string(),
         ]);
 
         Self {
@@ -227,10 +329,19 @@ impl SiteDefinition {
         domains.insert(DomainCategory::Core, vec![
             "stackoverflow.com".to_string(),
         ]);
-        domains.insert(DomainCategory::CrossDependency, vec![
+        domains.insert(DomainCategory::Cdn, vec![
+            "sstatic.net".to_string(),
+            "cdn.sstatic.net".to_string(),
+        ]);
+        domains.insert(DomainCategory::Services, vec![
             "stackexchange.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::CrossDependency, vec![
             "superuser.com".to_string(),
             "askubuntu.com".to_string(),
+            "serverfault.com".to_string(),
+            "mathoverflow.net".to_string(),
+            "stackapps.com".to_string(),
         ]);
 
         Self {
@@ -272,9 +383,8 @@ impl SiteDefinition {
         let mut domains = HashMap::new();
         domains.insert(DomainCategory::Core, vec![
             "crates.io".to_string(),
-        ]);
-        domains.insert(DomainCategory::Packages, vec![
             "static.crates.io".to_string(),
+            "index.crates.io".to_string(),
         ]);
 
         Self {
@@ -486,27 +596,176 @@ mod tests {
         assert_eq!(site.id, "github");
         assert_eq!(site.name, "GitHub");
         assert!(site.health_check.is_some());
-        
+
         let all = site.all_domains();
+        // Core
         assert!(all.contains(&"github.com".to_string()));
         assert!(all.contains(&"github.io".to_string()));
         assert!(all.contains(&"githubusercontent.com".to_string()));
         assert!(all.contains(&"githubassets.com".to_string()));
         assert!(all.contains(&"ghcr.io".to_string()));
-        assert_eq!(site.domain_count(), 5);
+        assert!(all.contains(&"ssh.github.com".to_string()));
+        assert!(all.contains(&"lfs.github.com".to_string()));
+        // Api
+        assert!(all.contains(&"api.github.com".to_string()));
+        assert!(all.contains(&"graphql.github.com".to_string()));
+        assert!(all.contains(&"actions.githubusercontent.com".to_string()));
+        // Assets
+        assert!(all.contains(&"raw.githubusercontent.com".to_string()));
+        assert!(all.contains(&"codeload.github.com".to_string()));
+        assert!(all.contains(&"avatars.githubusercontent.com".to_string()));
+        // Services
+        assert!(all.contains(&"gist.github.com".to_string()));
+        assert!(all.contains(&"copilot.github.com".to_string()));
+        assert!(all.contains(&"githubcopilot.com".to_string()));
+        // Packages
+        assert!(all.contains(&"npm.pkg.github.com".to_string()));
+        // Reference: github-host project has 47 domains for GitHub
+        assert_eq!(site.domain_count(), 47);
     }
 
     #[test]
     fn site_definition_chatgpt_covers_openai() {
         let site = SiteDefinition::chatgpt_default();
         let all = site.all_domains();
+        // Core
         assert!(all.contains(&"chatgpt.com".to_string()));
         assert!(all.contains(&"openai.com".to_string()));
-        assert!(all.contains(&"api.openai.com".to_string()));
+        assert!(all.contains(&"chat.openai.com".to_string()));
+        assert!(all.contains(&"help.openai.com".to_string()));
+        assert!(all.contains(&"platform.openai.com".to_string()));
+        // Api
+        assert!(all.contains(&"auth0.openai.com".to_string()));
+        assert!(all.contains(&"auth.openai.com".to_string()));
+        // Cdn
         assert!(all.contains(&"cdn.openai.com".to_string()));
         assert!(all.contains(&"oaistatic.com".to_string()));
         assert!(all.contains(&"oaiusercontent.com".to_string()));
-        assert_eq!(site.domain_count(), 6);
+        // ThirdParty
+        assert!(all.contains(&"challenges.cloudflare.com".to_string()));
+        assert!(all.contains(&"sentry.io".to_string()));
+        assert!(all.contains(&"js.stripe.com".to_string()));
+        // Reference: github-host project has 22 domains, GoGuo adds api.openai.com = 23
+        assert_eq!(site.domain_count(), 23);
+    }
+
+    #[test]
+    fn site_definition_google_domains() {
+        let site = SiteDefinition::google_default();
+        let all = site.all_domains();
+        // Core
+        assert!(all.contains(&"google.com".to_string()));
+        assert!(all.contains(&"google.com.hk".to_string()));
+        assert!(all.contains(&"googleapis.com".to_string()));
+        // Api
+        assert!(all.contains(&"accounts.google.com".to_string()));
+        // Cdn
+        assert!(all.contains(&"gstatic.com".to_string()));
+        assert!(all.contains(&"googleusercontent.com".to_string()));
+        assert!(all.contains(&"fonts.googleapis.com".to_string()));
+        // Services
+        assert!(all.contains(&"youtube.com".to_string()));
+        assert!(all.contains(&"gmail.com".to_string()));
+        assert!(all.contains(&"drive.google.com".to_string()));
+        // Reference: github-host project has 22 domains for Google
+        assert_eq!(site.domain_count(), 22);
+    }
+
+    #[test]
+    fn site_definition_claude_domains() {
+        let site = SiteDefinition::claude_default();
+        let all = site.all_domains();
+        // Core
+        assert!(all.contains(&"claude.ai".to_string()));
+        assert!(all.contains(&"claude.com".to_string()));
+        assert!(all.contains(&"anthropic.com".to_string()));
+        // Api
+        assert!(all.contains(&"api.anthropic.com".to_string()));
+        // Cdn
+        assert!(all.contains(&"cdn.anthropic.com".to_string()));
+        // ThirdParty
+        assert!(all.contains(&"intercom.io".to_string()));
+        assert!(all.contains(&"sentry.io".to_string()));
+        // CrossDependency
+        assert!(all.contains(&"accounts.google.com".to_string()));
+        // Reference: github-host project has 15 domains for Claude
+        assert_eq!(site.domain_count(), 15);
+    }
+
+    #[test]
+    fn site_definition_npmjs_domains() {
+        let site = SiteDefinition::npmjs_default();
+        let all = site.all_domains();
+        assert!(all.contains(&"npmjs.com".to_string()));
+        assert!(all.contains(&"registry.npmjs.org".to_string()));
+        assert!(all.contains(&"static.npmjs.com".to_string()));
+        assert_eq!(site.domain_count(), 3);
+    }
+
+    #[test]
+    fn site_definition_crates_domains() {
+        let site = SiteDefinition::crates_default();
+        let all = site.all_domains();
+        assert!(all.contains(&"crates.io".to_string()));
+        assert!(all.contains(&"static.crates.io".to_string()));
+        assert!(all.contains(&"index.crates.io".to_string()));
+        assert_eq!(site.domain_count(), 3);
+    }
+
+    #[test]
+    fn site_definition_docker_domains() {
+        let site = SiteDefinition::docker_default();
+        let all = site.all_domains();
+        assert!(all.contains(&"docker.com".to_string()));
+        assert!(all.contains(&"docker.io".to_string()));
+        assert!(all.contains(&"registry.docker.com".to_string()));
+        assert!(all.contains(&"registry.hub.docker.com".to_string()));
+        assert!(site.domain_count() >= 4);
+    }
+
+    #[test]
+    fn site_definition_stackoverflow_domains() {
+        let site = SiteDefinition::stackoverflow_default();
+        let all = site.all_domains();
+        assert!(all.contains(&"stackoverflow.com".to_string()));
+        assert!(all.contains(&"sstatic.net".to_string()));
+        assert!(all.contains(&"stackexchange.com".to_string()));
+        assert!(all.contains(&"superuser.com".to_string()));
+        assert!(site.domain_count() >= 6);
+    }
+
+    #[test]
+    fn site_definition_pypi_domains() {
+        let site = SiteDefinition::pypi_default();
+        let all = site.all_domains();
+        assert!(all.contains(&"pypi.org".to_string()));
+        assert!(all.contains(&"files.pythonhosted.org".to_string()));
+        assert!(site.domain_count() >= 2);
+    }
+
+    #[test]
+    fn site_definition_all_sites_have_domains() {
+        let sites = vec![
+            SiteDefinition::github_default(),
+            SiteDefinition::npmjs_default(),
+            SiteDefinition::claude_default(),
+            SiteDefinition::chatgpt_default(),
+            SiteDefinition::docker_default(),
+            SiteDefinition::google_default(),
+            SiteDefinition::stackoverflow_default(),
+            SiteDefinition::pypi_default(),
+            SiteDefinition::crates_default(),
+            SiteDefinition::oracle_default(),
+            SiteDefinition::wikipedia_default(),
+            SiteDefinition::whatsapp_default(),
+            SiteDefinition::instagram_default(),
+            SiteDefinition::canva_default(),
+            SiteDefinition::twitter_x_default(),
+        ];
+        assert_eq!(sites.len(), 15);
+        for site in &sites {
+            assert!(!site.all_domains().is_empty(), "{} has no domains", site.id);
+        }
     }
 
     #[test]

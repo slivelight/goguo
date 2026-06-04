@@ -335,7 +335,7 @@ impl BaselineManager {
             let start = Instant::now();
             let result = std::process::Command::new("curl")
                 .args([
-                    "-s", "-o", "/dev/null", "-w", "%{http_code}",
+                    "--noproxy", "*", "-s", "-o", "/dev/null", "-w", "%{http_code}",
                     "--connect-timeout", "5", "--max-time", "10", url,
                 ])
                 .output();

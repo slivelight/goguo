@@ -3,14 +3,22 @@ import { useSiteStore } from '../stores/site-store';
 import { useNotifStore } from '../stores/notif-store';
 import StatusBadge from '../components/shared/StatusBadge';
 import ConfirmDialog from '../components/shared/ConfirmDialog';
+import AddSiteDialog from '../components/shared/AddSiteDialog';
+import EditSiteDialog from '../components/shared/EditSiteDialog';
+import TemplateConfirmDialog from '../components/shared/TemplateConfirmDialog';
+import type { SiteInfo } from '../lib/types';
+
+const BUILTIN_IDS = ['github', 'npmjs', 'claude', 'chatgpt', 'docker', 'google', 'stackoverflow', 'pypi', 'crates', 'oracle', 'wikipedia', 'whatsapp', 'instagram', 'canva', 'twitter-x'];
 
 function SitesPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [siteIdInput, setSiteIdInput] = useState('');
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [siteToDelete, setSiteToDelete] = useState<string | null>(null);
+  const [siteToEdit, setSiteToEdit] = useState<SiteInfo | null>(null);
+  const [expandedSiteId, setExpandedSiteId] = useState<string | null>(null);
 
   const { sites, reachability, addSite, removeSite, applyTemplate, fetchSites } = useSiteStore();
   const { addNotification } = useNotifStore();
@@ -19,16 +27,32 @@ function SitesPage() {
     fetchSites();
   }, []);
 
-  const handleAddSite = async () => {
-    if (!siteIdInput.trim()) return;
-    const result = await addSite(siteIdInput.trim());
+  const handleAddSite = async (siteId: string) => {
+    const result = await addSite(siteId);
     if (result.success) {
-      addNotification('success', '站点添加成功', `已添加 ${siteIdInput}，覆盖 ${result.site?.domain_count || 0} 个域名`);
-      setSiteIdInput('');
+      addNotification('success', '站点添加成功', `已添加 ${siteId}，覆盖 ${result.site?.domain_count || 0} 个域名`);
       setShowAddDialog(false);
     } else {
       addNotification('error', '添加失败', result.error || '未知错误');
     }
+  };
+
+  const handleSiteCreated = () => {
+    setShowAddDialog(false);
+    fetchSites();
+    addNotification('success', '站点创建成功', '新站点已添加并生成代理规则');
+  };
+
+  const handleEditSite = (site: SiteInfo) => {
+    setSiteToEdit(site);
+    setShowEditDialog(true);
+  };
+
+  const handleEditSaved = () => {
+    setShowEditDialog(false);
+    setSiteToEdit(null);
+    fetchSites();
+    addNotification('success', '站点编辑成功', '域名已更新并重新生成代理规则');
   };
 
   const handleDeleteSite = async () => {
@@ -74,6 +98,8 @@ function SitesPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
             {sites.map((site) => {
               const reachable = getSiteReachability(site.id);
+              const isExpanded = expandedSiteId === site.id;
+              const allDomains = Object.values(site.domains || {}).flat();
               return (
                 <div key={site.id} className="card" style={{ padding: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -85,12 +111,28 @@ function SitesPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {reachable && (
-                        <StatusBadge 
+                        <StatusBadge
                           status={reachable.reachable ? 'success' : 'error'}
                           label={reachable.reachable ? '可达' : '不可达'}
                         />
                       )}
-                      <button 
+                      <button
+                        className="btn btn-secondary"
+                        style={{ fontSize: '12px', padding: '4px 8px' }}
+                        onClick={() => setExpandedSiteId(isExpanded ? null : site.id)}
+                      >
+                        {isExpanded ? '收起域名' : '展开域名'}
+                      </button>
+                      {!BUILTIN_IDS.includes(site.id) && (
+                        <button
+                          className="btn btn-secondary"
+                          style={{ fontSize: '12px', padding: '4px 8px' }}
+                          onClick={() => handleEditSite(site)}
+                        >
+                          编辑
+                        </button>
+                      )}
+                      <button
                         className="btn btn-secondary" 
                         style={{ fontSize: '12px', padding: '4px 8px' }}
                         onClick={() => {
@@ -102,6 +144,25 @@ function SitesPage() {
                       </button>
                     </div>
                   </div>
+                  {isExpanded && allDomains.length > 0 && (
+                    <div style={{ marginTop: '8px', maxHeight: '120px', overflowY: 'auto' }}>
+                      {allDomains.map((d) => (
+                        <span
+                          key={d}
+                          style={{
+                            display: 'inline-block',
+                            padding: '2px 6px',
+                            margin: '2px',
+                            background: 'var(--color-bg-secondary, #f0f0f0)',
+                            borderRadius: '3px',
+                            fontSize: '11px',
+                          }}
+                        >
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -127,16 +188,10 @@ function SitesPage() {
         </div>
       </div>
 
-      <ConfirmDialog
+      <AddSiteDialog
         isOpen={showAddDialog}
-        title="添加目标站点"
-        message="输入站点标识（如 github、npm）"
-        confirmText="添加"
-        onConfirm={handleAddSite}
-        onCancel={() => {
-          setShowAddDialog(false);
-          setSiteIdInput('');
-        }}
+        onSiteCreated={handleSiteCreated}
+        onCancel={() => setShowAddDialog(false)}
       />
 
       <ConfirmDialog
@@ -152,11 +207,21 @@ function SitesPage() {
         }}
       />
 
-      <ConfirmDialog
+      {siteToEdit && (
+        <EditSiteDialog
+          isOpen={showEditDialog}
+          site={siteToEdit}
+          onSaved={handleEditSaved}
+          onCancel={() => {
+            setShowEditDialog(false);
+            setSiteToEdit(null);
+          }}
+        />
+      )}
+
+      <TemplateConfirmDialog
         isOpen={showTemplateDialog}
-        title="应用预设模板"
-        message={`确认应用 "${selectedTemplate}" 模板？将自动添加多个站点。`}
-        confirmText="应用"
+        template={selectedTemplate}
         onConfirm={handleApplyTemplate}
         onCancel={() => {
           setShowTemplateDialog(false);

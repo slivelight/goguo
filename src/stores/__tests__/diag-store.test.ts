@@ -89,4 +89,29 @@ describe('diag-store', () => {
     const state = useDiagStore.getState();
     expect(state.reachability[0].reachable).toBe(false);
   });
+
+  it('fetchAuditLog appends records on subsequent calls', async () => {
+    vi.mocked(getAuditLog)
+      .mockResolvedValueOnce({
+        total_count: 4,
+        records: [
+          { timestamp: '2026-05-21T08:00:00Z', action: 'action1', target: 't1', result: 'success' },
+          { timestamp: '2026-05-21T08:01:00Z', action: 'action2', target: 't2', result: 'success' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        total_count: 4,
+        records: [
+          { timestamp: '2026-05-21T08:02:00Z', action: 'action3', target: 't3', result: 'success' },
+          { timestamp: '2026-05-21T08:03:00Z', action: 'action4', target: 't4', result: 'success' },
+        ],
+      });
+
+    await useDiagStore.getState().fetchAuditLog(0, 2);
+    expect(useDiagStore.getState().auditLog.records).toHaveLength(2);
+
+    await useDiagStore.getState().fetchAuditLog(2, 2);
+    expect(useDiagStore.getState().auditLog.records).toHaveLength(4);
+    expect(useDiagStore.getState().auditLog.total_count).toBe(4);
+  });
 });

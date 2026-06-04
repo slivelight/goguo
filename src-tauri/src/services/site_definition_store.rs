@@ -8,6 +8,7 @@ use std::path::PathBuf;
 pub struct SiteDefinitionStore {
     built_in: HashMap<String, SiteDefinition>,
     custom_dir: PathBuf,
+    reverse_index: HashMap<String, String>,
 }
 
 impl SiteDefinitionStore {
@@ -30,7 +31,18 @@ impl SiteDefinitionStore {
         built_in.insert("canva".to_string(), SiteDefinition::canva_default());
         built_in.insert("twitter-x".to_string(), SiteDefinition::twitter_x_default());
 
-        Self { built_in, custom_dir }
+        let reverse_index = Self::build_reverse_index(&built_in);
+        Self { built_in, custom_dir, reverse_index }
+    }
+
+    fn build_reverse_index(sites: &HashMap<String, SiteDefinition>) -> HashMap<String, String> {
+        let mut index = HashMap::new();
+        for (site_id, site) in sites {
+            for domain in site.all_domains() {
+                index.insert(domain, site_id.clone());
+            }
+        }
+        index
     }
 
     #[must_use]
@@ -126,6 +138,38 @@ impl SiteDefinitionStore {
             }
         }
         Ok(ids)
+    }
+
+    /// Looks up a site by domain. Tries exact match first, then suffix match.
+    ///
+    /// For example:
+    /// - `"github.com"` → exact match
+    /// - `"www.google.com"` → suffix match against `"google.com"`
+    #[must_use]
+    pub fn lookup_by_domain(&self, domain: &str) -> Option<SiteDefinition> {
+        // 1. Exact match in reverse index
+        if let Some(site_id) = self.reverse_index.get(domain) {
+            return self.built_in.get(site_id).cloned();
+        }
+
+        // 2. Suffix match: walk up by removing leading labels
+        // e.g. "www.google.com" → try "google.com"
+        let parts: Vec<&str> = domain.split('.').collect();
+        for start in 1..parts.len().saturating_sub(1) {
+            let suffix = parts[start..].join(".");
+            if let Some(site_id) = self.reverse_index.get(&suffix) {
+                return self.built_in.get(site_id).cloned();
+            }
+        }
+
+        // 3. Suffix match against stored domains: query domain ends with stored domain
+        for (stored_domain, site_id) in &self.reverse_index {
+            if domain.ends_with(stored_domain) && domain != stored_domain.as_str() {
+                return self.built_in.get(site_id).cloned();
+            }
+        }
+
+        None
     }
 
     #[must_use]
@@ -395,5 +439,52 @@ mod tests {
         let loaded = store.get("github").expect("loaded");
         assert_eq!(loaded.name, "GitHub");
         assert!(loaded.all_domains().contains(&"github.com".to_string()));
+    }
+
+    #[test]
+    fn lookup_by_domain_finds_core_domain() {
+        let dir = tempdir().expect("tempdir");
+        let store = SiteDefinitionStore::new(dir.path().to_path_buf());
+        let result = store.lookup_by_domain("github.com");
+        assert!(result.is_some());
+        let site = result.expect("site");
+        assert_eq!(site.id, "github");
+    }
+
+    #[test]
+    fn lookup_by_domain_finds_subdomain() {
+        let dir = tempdir().expect("tempdir");
+        let store = SiteDefinitionStore::new(dir.path().to_path_buf());
+        // api.github.com is in github's Api category
+        let result = store.lookup_by_domain("api.github.com");
+        assert!(result.is_some());
+        assert_eq!(result.expect("site").id, "github");
+    }
+
+    #[test]
+    fn lookup_by_domain_finds_via_suffix_match() {
+        let dir = tempdir().expect("tempdir");
+        let store = SiteDefinitionStore::new(dir.path().to_path_buf());
+        // Store has "google.com" — a query for "www.google.com" should match via suffix
+        let result = store.lookup_by_domain("www.google.com");
+        assert!(result.is_some());
+        assert_eq!(result.expect("site").id, "google");
+    }
+
+    #[test]
+    fn lookup_by_domain_returns_none_for_unknown() {
+        let dir = tempdir().expect("tempdir");
+        let store = SiteDefinitionStore::new(dir.path().to_path_buf());
+        let result = store.lookup_by_domain("totally-unknown-site.xyz");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn lookup_by_domain_findchatgpt_via_openai() {
+        let dir = tempdir().expect("tempdir");
+        let store = SiteDefinitionStore::new(dir.path().to_path_buf());
+        let result = store.lookup_by_domain("openai.com");
+        assert!(result.is_some());
+        assert_eq!(result.expect("site").id, "chatgpt");
     }
 }

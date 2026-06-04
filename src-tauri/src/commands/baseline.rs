@@ -4,6 +4,7 @@ use std::path::Path;
 use crate::managers::baseline_manager::NonTargetVerification;
 use crate::managers::config_manager::ConfigManager;
 use crate::models::audit::AuditAction;
+use crate::models::baseline::StateItem;
 use crate::models::config::AppConfig;
 use crate::models::recovery::RecoveryStatus;
 use crate::storage::baseline_storage::BaselineStorage;
@@ -359,12 +360,13 @@ impl AppState {
     /// # Errors
     ///
     /// Returns an I/O error if the config or audit directories cannot be created.
-    pub fn new(data_dir: &Path) -> std::io::Result<Self> {
+    pub fn new(install_root: &Path) -> std::io::Result<Self> {
+        let data_dir = install_root.join("data");
         let storage = BaselineStorage::new(data_dir.join("baseline"));
 
         // Create DeploymentManager first to determine deployment mode
         let config_manager = ConfigManager::new(data_dir.join("config"))?;
-        let depl_mgr = DeploymentManager::new(config_manager, data_dir.to_path_buf());
+        let depl_mgr = DeploymentManager::new(config_manager, install_root.to_path_buf());
 
         // Use stored mode, fallback to auto-detected mode
         let detected = DeploymentManager::detect_deployment_mode();
@@ -381,7 +383,7 @@ impl AppState {
 
         let deployment_manager = Mutex::new(depl_mgr);
 
-        let app_config = AppConfig::default_for(data_dir.to_path_buf());
+        let app_config = AppConfig::default_for(install_root.to_path_buf());
         let mihomo_manager = Mutex::new(MihomoManager::new(app_config.mihomo));
         let proxy_guard = Mutex::new(ProxyGuard::new(app_config.proxy_guard));
 
@@ -446,6 +448,19 @@ pub fn get_state_summary(mgr: &BaselineManager) -> Result<StateSummaryResponse, 
         detectable_count: summary.detectable.len(),
         excluded_count: summary.excluded.len(),
     })
+}
+
+/// Read the initial snapshot and return all items with their values.
+///
+/// # Errors
+///
+/// Returns an error if no snapshot exists or reading fails.
+pub fn get_snapshot_details(mgr: &BaselineManager) -> Result<Vec<StateItem>, String> {
+    let snapshot = mgr
+        .get_initial_snapshot()
+        .map_err(|e| command_error("Failed to read snapshot", e))?;
+    let snap = snapshot.ok_or_else(|| "No initial snapshot found".to_string())?;
+    Ok(snap.items)
 }
 
 /// Re-collect the network state (trigger readjustment).
@@ -784,6 +799,19 @@ pub fn tauri_start_initial_assessment(state: tauri::State<'_, AppState>) -> Resu
 pub fn tauri_get_state_summary(state: tauri::State<'_, AppState>) -> Result<StateSummaryResponse, String> {
     let mgr = state.baseline_manager.lock().expect("lock");
     get_state_summary(&mgr)
+}
+
+/// Tauri command: get snapshot item details for review dialog.
+#[tauri::command(rename_all = "snake_case")]
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::missing_panics_doc,
+    clippy::missing_errors_doc,
+    clippy::double_must_use
+)]
+pub fn tauri_get_snapshot_details(state: tauri::State<'_, AppState>) -> Result<Vec<StateItem>, String> {
+    let mgr = state.baseline_manager.lock().expect("lock");
+    get_snapshot_details(&mgr)
 }
 
 /// Tauri command: trigger readjustment.

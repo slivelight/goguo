@@ -1,7 +1,7 @@
 # GoGuo 部署 Runbook — Windows / WSL / Linux
 
 - **适用版本**: v0.1.0+
-- **更新日期**: 2026-05-27
+- **更新日期**: 2026-06-02
 - **mihomo 版本**: v1.19.25
 
 ---
@@ -63,34 +63,34 @@ kill $(ss -tlnp | grep 7890 | grep -oP 'pid=\K\d+')
 | 平台 | 文件名 |
 |------|--------|
 | Windows amd64 | `mihomo-windows-amd64-v1.19.25.zip` |
-| Linux / WSL amd64 | `mihomo-linux-amd64-v1.19.25.gz` |
 
+| Linux / WSL amd64 | `mihomo-linux-amd64-v1.19.25.gz` |
 下载地址：https://github.com/slivelight/goguo/releases/tag/v0.1.0
 
 **Windows**：
 
 ```powershell
-mkdir "<DATA_DIR>\bin" -Force
-Expand-Archive -Path mihomo-windows-amd64-v1.19.25.zip -DestinationPath <DATA_DIR>\bin
+mkdir "<INSTALL_ROOT>\bin" -Force
+Expand-Archive -Path mihomo-windows-amd64-v1.19.25.zip -DestinationPath <INSTALL_ROOT>\bin
 # 确认
-Test-Path "<DATA_DIR>\bin\mihomo.exe"
+Test-Path "<INSTALL_ROOT>\bin\mihomo.exe"
 ```
 
 **WSL / Linux**：
 
 ```bash
-mkdir -p <DATA_DIR>/bin
-gunzip -c mihomo-linux-amd64-v1.19.25.gz > <DATA_DIR>/bin/mihomo
-chmod +x <DATA_DIR>/bin/mihomo
+mkdir -p <INSTALL_ROOT>/bin
+gunzip -c mihomo-linux-amd64-v1.19.25.gz > <INSTALL_ROOT>/bin/mihomo
+chmod +x <INSTALL_ROOT>/bin/mihomo
 # 确认
-ls -l <DATA_DIR>/bin/mihomo
+ls -l <INSTALL_ROOT>/bin/mihomo
 ```
 
 ### 步骤 3：配置 mihomo 代理节点
 
 > **关键步骤。** mihomo 默认配置没有代理节点，GoGuo 启动后无法代理任何流量。必须手动配置代理节点（从订阅、节点服务商获取）。
 
-编辑 `<DATA_DIR>/data/mihomo/config.yaml`，写入代理节点、代理组和规则。
+编辑 `<INSTALL_ROOT>/data/mihomo/config.yaml`，写入代理节点、代理组和规则。
 
 **最小可用配置模板**：
 
@@ -146,30 +146,38 @@ rules:
   - MATCH,PROXY
 ```
 
-**从已有配置迁移**：如果从其他代理工具（如 GitHub-Host）迁移，可直接复制其 `proxies`、`proxy-groups`、`rules`、`rule-providers` 部分到 GoGuo 的 mihomo config.yaml。如有 ruleset 文件，需复制到 `<DATA_DIR>/data/mihomo/ruleset/` 目录并确保 `rule-providers` 路径正确。
+**从已有配置迁移**：如果从其他代理工具（如 GitHub-Host）迁移，可直接复制其 `proxies`、`proxy-groups`、`rules`、`rule-providers` 部分到 GoGuo 的 mihomo config.yaml。如有 ruleset 文件，需复制到 `<INSTALL_ROOT>/data/mihomo/ruleset/` 目录并确保 `rule-providers` 路径正确。
 
 **验证配置语法**：
 
 ```bash
-python3 -c "import yaml; yaml.safe_load(open('<DATA_DIR>/data/mihomo/config.yaml')); print('OK')"
+python3 -c "import yaml; yaml.safe_load(open('<INSTALL_ROOT>/data/mihomo/config.yaml')); print('OK')"
 ```
 
 ### 步骤 4：安装并启动 GoGuo
 
+GoGuo 采用便携包分发，无需安装器，解压即用。
+
 **Windows**：
 
 ```powershell
-.\GoGuo_0.1.0_x64-setup.exe
+# 1. 解压发布包到目标目录（即 INSTALL_ROOT）
+Expand-Archive -Path GoGuo-v0.2.0-windows-amd64.zip -DestinationPath <INSTALL_ROOT>
+# 2. 启动
+<INSTALL_ROOT>\goguo.exe
 ```
 
-**WSL / Linux（从源码构建）**：
+**WSL / Linux**：
 
 ```bash
-cd <项目目录>
-pnpm install && pnpm tauri build
-sudo dpkg -i src-tauri/target/release/bundle/deb/goguo_0.1.0_amd64.deb
-# 或直接运行 AppImage
+# 1. 解压发布包到目标目录（即 INSTALL_ROOT）
+tar xzf GoGuo-v0.2.0-linux-amd64.tar.gz -C <INSTALL_ROOT>
+# 2. 启动（AppImage 方式）
+chmod +x <INSTALL_ROOT>/goguo.AppImage
+<INSTALL_ROOT>/goguo.AppImage
 ```
+
+> **`INSTALL_ROOT` 说明**：GoGuo 将可执行文件所在目录视为"安装根目录"，所有数据和配置存放在 `<INSTALL_ROOT>/data/` 下。用户可自由选择解压位置（如 `D:\GoGuo\` 或 `/opt/goguo/`）。
 
 启动后在向导中选择部署模式。
 
@@ -291,43 +299,58 @@ $c.DownloadString('https://github.com') | Select-Object Length
 
 ---
 
-## 3. 数据目录
+## 3. 安装根目录与数据目录
 
-GoGuo 使用 Tauri 标准 `app_data_dir`，路径因平台而异：
+GoGuo 采用便携包分发，**安装根目录（`INSTALL_ROOT`）即用户解压发布包的目标目录**。所有数据、配置、二进制统一在该目录下管理。
 
-| 平台 | 路径 |
-|------|------|
-| Windows | `C:\Users\<用户>\AppData\Roaming\com.goguo.app\` |
-| WSL / Linux | `~/.local/share/com.goguo.app/` |
+### 路径规则
 
-> 以下简称 `<DATA_DIR>`。
+| 模式 | INSTALL_ROOT | 数据目录 |
+|------|-------------|---------|
+| **生产模式** | 可执行文件所在目录（用户解压位置） | `<INSTALL_ROOT>/data/` |
+| **开发模式**（`pnpm tauri dev`） | `<项目根目录>/release/` | `<release>/data/` |
 
 ### 完整目录结构
 
 ```text
-<DATA_DIR>/
+<INSTALL_ROOT>/                        # 用户解压后的根目录
+├── gogugo.exe / goguo.AppImage        # GoGuo 主程序
 ├── bin/
-│   └── mihomo[.exe]              # mihomo 代理引擎
-├── baseline/                     # 网络状态快照
-├── config/
-│   ├── settings.json             # 用户配置（含部署模式）
-│   └── site-definitions/         # 目标站点定义
-├── rules/
-│   └── current-rules.yaml        # mihomo 规则
-├── mihomo/
-│   ├── config.yaml               # mihomo 运行配置（含代理节点）
-│   ├── geoip.metadb              # GeoIP 数据库（mihomo 自带）
-│   ├── geosite.dat               # GeoSite 数据库（mihomo 自带）
-│   ├── cache.db                  # DNS 缓存
-│   └── ruleset/                  # 自定义规则文件（可选）
-│       ├── github.yaml
-│       ├── github-ip.yaml
-│       ├── custom-direct.yaml
-│       ├── custom-proxy.yaml
-│       └── custom-block.yaml
-└── audit/
-    └── audit-*.jsonl             # 操作审计日志
+│   └── mihomo[.exe]                   # mihomo 代理引擎
+├── data/                              # 所有运行时数据
+│   ├── baseline/                      # 网络状态快照
+│   │   ├── initial-snapshot.json      #   初始状态快照
+│   │   └── baseline-v1.json           #   已确认的 baseline
+│   ├── config/
+│   │   ├── settings.json              # 用户配置（含部署模式）
+│   │   ├── subscription-sources.json  # 订阅源配置
+│   │   └── site-definitions/          # 目标站点定义
+│   │       ├── github.json
+│   │       ├── npmjs.json
+│   │       └── custom/                # 用户自定义站点
+│   ├── rules/
+│   │   ├── current-rules.yaml         # 当前生效的 mihomo 规则
+│   │   └── previous-rules.yaml        # 上一份规则（回退用）
+│   ├── audit/
+│   │   └── audit-*.jsonl              # 操作审计日志（按日期滚动）
+│   └── mihomo/
+│       ├── config.yaml                # mihomo 运行配置（含代理节点）
+│       ├── geoip.metadb               # GeoIP 数据库（mihomo 自带）
+│       ├── geosite.dat                # GeoSite 数据库（mihomo 自带）
+│       ├── cache.db                   # DNS 缓存（运行时生成）
+│       └── ruleset/                   # 规则文件
+│           ├── github.yaml
+│           ├── github-ip.yaml
+│           ├── custom-direct.yaml      # [可选] 用户自定义直连规则
+│           ├── custom-proxy.yaml       # [可选] 用户自定义代理规则
+│           └── custom-block.yaml       # [可选] 用户自定义拦截规则
 ```
+
+> **关键规则**：
+> - GoGuo 二进制与 mihomo 二进制分离（`bin/`）
+> - 所有运行时数据集中在 `data/` 下
+> - 备份和恢复通过复制整个 `data/` 目录完成
+> - `data/` 下的子目录在首次启动时自动创建
 
 ---
 
@@ -348,7 +371,7 @@ GoGuo 使用 Tauri 标准 `app_data_dir`，路径因平台而异：
 1. 在 Windows 启动 GoGuo
 2. 向导中选择 `coordinated` 模式
 3. GoGuo 自动检测 WSL 并创建 WslRemoteAdapter
-4. mihomo 使用 Windows 版本（`bin\mihomo.exe`）
+4. mihomo 使用 Windows 版本（`<INSTALL_ROOT>\bin\mihomo.exe`）
 
 **桥接机制**：GoGuo 通过 `wsl -e <command>` 执行 WSL 侧操作（写入 `/etc/environment`、`/etc/resolv.conf` 等）。
 
@@ -365,7 +388,7 @@ GoGuo 使用 Tauri 标准 `app_data_dir`，路径因平台而异：
 1. 在 WSL 启动 GoGuo
 2. 向导中选择 `coordinated` 模式
 3. GoGuo 自动检测 Windows 并创建 WindowsRemoteAdapter
-4. mihomo 使用 Linux 版本（`bin/mihomo`）
+4. mihomo 使用 Linux 版本（`<INSTALL_ROOT>/bin/mihomo`）
 5. mihomo 必须配置 `allow-lan: true` + `bind-address: "*"` + `external-controller: 0.0.0.0:9090`，允许 Windows 侧访问
 
 **桥接机制**：GoGuo 通过 `powershell.exe -Command <cmd>` 执行 Windows 侧操作（设置系统代理、修改 hosts 等）。
@@ -404,8 +427,8 @@ cat $env:USERPROFILE\.wslconfig
 
 - **原因**: 二进制路径错误或权限不足
 - **排查**:
-  - 确认 `<DATA_DIR>/bin/mihomo` 存在
-  - Linux/WSL: 确认有执行权限 `ls -l <DATA_DIR>/bin/mihomo`
+  - 确认 `<INSTALL_ROOT>/bin/mihomo` 存在
+  - Linux/WSL: 确认有执行权限 `ls -l <INSTALL_ROOT>/bin/mihomo`
   - Windows: 确认 `mihomo.exe` 未被杀毒软件拦截
 
 ### Q2: 端口 7890 被占用
@@ -464,9 +487,8 @@ cat $env:USERPROFILE\.wslconfig
 # 1. 在 GoGuo UI 中点击"停止服务"
 # 2. 清除 Windows 系统代理
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -Name ProxyEnable -Value 0
-# 3. 卸载程序：控制面板 → 程序 → 卸载 GoGuo
-# 4. 手动清理数据目录（可选）
-Remove-Item -Recurse "C:\Users\<用户>\AppData\Roaming\com.goguo.app"
+# 3. 删除整个安装目录（便携包，直接删除即可）
+Remove-Item -Recurse "<INSTALL_ROOT>"
 ```
 
 ### WSL / Linux
@@ -475,10 +497,8 @@ Remove-Item -Recurse "C:\Users\<用户>\AppData\Roaming\com.goguo.app"
 # 1. 在 GoGuo UI 中点击"停止服务"
 # 2. 清除 /etc/environment 中的代理行（需要 sudo）
 sudo sed -i '/proxy\|PROXY/d' /etc/environment
-# 3. 卸载（Deb 方式安装的）
-sudo dpkg -r goguo
-# 4. 手动清理数据目录（可选）
-rm -rf ~/.local/share/com.goguo.app
+# 3. 删除整个安装目录（便携包，直接删除即可）
+rm -rf <INSTALL_ROOT>
 ```
 
 ---
@@ -489,8 +509,8 @@ rm -rf ~/.local/share/com.goguo.app
 
 | 平台 | 说明 |
 |------|------|
-| Windows | 用户级权限（`%APPDATA%`） |
-| WSL / Linux | `<DATA_DIR>` 用户级权限；`/etc/environment`、`/etc/resolv.conf` 写入需 sudo |
+| Windows | `<INSTALL_ROOT>` 用户级权限（用户选择的解压目录） |
+| WSL / Linux | `<INSTALL_ROOT>` 用户级权限；`/etc/environment`、`/etc/resolv.conf` 写入需 sudo |
 | 协同桥接 | 继承被调用侧的用户权限 |
 
 ### 7.2 端口说明
@@ -507,20 +527,20 @@ rm -rf ~/.local/share/com.goguo.app
 ```bash
 curl -X PUT http://127.0.0.1:9090/configs \
   -H "Content-Type: application/json" \
-  -d '{"path":"<DATA_DIR>/data/mihomo/config.yaml"}'
+  -d '{"path":"<INSTALL_ROOT>/data/mihomo/config.yaml"}'
 ```
 
 ### 7.4 配置文件参考
 
-`<DATA_DIR>/config/settings.json` 示例：
+`<INSTALL_ROOT>/data/config/settings.json` 示例：
 
 ```json
 {
-  "install_root": "<DATA_DIR>",
+  "install_root": "<INSTALL_ROOT>",
   "deployment_mode": "coordinated",
   "mihomo": {
-    "binary_path": "<DATA_DIR>/bin/mihomo",
-    "config_dir": "<DATA_DIR>/data/mihomo",
+    "binary_path": "<INSTALL_ROOT>/bin/mihomo",
+    "config_dir": "<INSTALL_ROOT>/data/mihomo",
     "api_address": "127.0.0.1:9090",
     "mixed_port": 7890
   },

@@ -10,6 +10,55 @@ use commands::baseline::AppState;
 use commands::site_rules::SiteRulesState;
 use tauri::Manager;
 
+/// Determine the install root directory.
+///
+/// Layout convention (dev and production share the same structure):
+/// ```text
+/// <install_root>/
+/// ├── bin/
+/// │   ├── goguo       (executable)
+/// │   └── mihomo
+/// └── data/
+///     ├── config/
+///     ├── baseline/
+///     └── ...
+/// ```
+///
+/// Resolution strategy:
+/// - **Debug builds** (`cargo build`): always `<project_root>/release/`.
+/// - **Release builds from `target/`**: detected as dev build → same as debug.
+/// - **Release builds elsewhere** (production): exe parent, then go up one level
+///   if the exe is inside a `bin/` subdirectory.
+fn get_install_root() -> std::path::PathBuf {
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let project_root = manifest_dir.parent().expect("src-tauri has parent");
+
+    // Dev mode: debug assertions enabled → always use project's release dir
+    if cfg!(debug_assertions) {
+        return project_root.join("release");
+    }
+
+    // Release build: resolve install root from executable location
+    let exe_dir = std::env::current_exe()
+        .expect("failed to get current executable path")
+        .parent()
+        .expect("executable has no parent directory")
+        .to_path_buf();
+
+    // If running from the project's target/ directory → dev release build
+    let target_dir = project_root.join("target");
+    if exe_dir.starts_with(&target_dir) {
+        return project_root.join("release");
+    }
+
+    // Production: if exe is inside a bin/ subdirectory, go up one level
+    if exe_dir.file_name().is_some_and(|name| name == "bin") {
+        exe_dir.parent().expect("bin has parent").to_path_buf()
+    } else {
+        exe_dir
+    }
+}
+
 /// Application entry point.
 ///
 /// # Panics
@@ -20,10 +69,13 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let data_dir = app.path().app_data_dir().expect("app data directory");
+            let install_root = get_install_root();
+            let data_dir = install_root.join("data");
+            eprintln!("[GoGuo] install_root = {}", install_root.display());
+            eprintln!("[GoGuo] data_dir = {}", data_dir.display());
             std::fs::create_dir_all(&data_dir).ok();
-            app.manage(AppState::new(&data_dir).expect("app state"));
-            app.manage(SiteRulesState::new(&data_dir));
+            app.manage(AppState::new(&install_root).expect("app state"));
+            app.manage(SiteRulesState::new(&install_root));
 
             // F105: spawn ProxyGuard background monitoring thread
             let app_handle = app.handle().clone();
@@ -42,6 +94,7 @@ pub fn run() {
             commands::baseline::tauri_stop_service,
             commands::baseline::tauri_get_service_status,
             commands::baseline::tauri_get_recovery_progress,
+            commands::baseline::tauri_get_snapshot_details,
             commands::baseline::tauri_get_is_restoring,
             commands::baseline::tauri_get_audit_log,
             commands::baseline::tauri_detect_deployment_mode,
@@ -62,6 +115,10 @@ pub fn run() {
             commands::site_rules::override_rule,
             commands::site_rules::import_subscription,
             commands::site_rules::get_subscription_sources,
+            commands::site_rules::list_site_definitions,
+            commands::site_rules::lookup_site,
+            commands::site_rules::tauri_create_site,
+            commands::site_rules::tauri_update_site_domains,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

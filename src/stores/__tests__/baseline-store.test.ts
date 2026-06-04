@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useBaselineStore, initializeBaselineStore } from '../baseline-store';
-import { getBaselineStatus, confirmBaseline, startInitialAssessment } from '../../lib/tauri-ipc';
+import { getBaselineStatus, confirmBaseline, startInitialAssessment, getStateSummary, getSnapshotDetails } from '../../lib/tauri-ipc';
 import { subscribeBaselineConfirmed, subscribeBaselineDeviation } from '../../lib/events';
 
 vi.mock('../../lib/tauri-ipc', () => ({
@@ -8,6 +8,8 @@ vi.mock('../../lib/tauri-ipc', () => ({
   confirmBaseline: vi.fn(),
   startInitialAssessment: vi.fn(),
   triggerReadjustment: vi.fn(),
+  getStateSummary: vi.fn(),
+  getSnapshotDetails: vi.fn(),
 }));
 
 vi.mock('../../lib/events', () => ({
@@ -80,6 +82,13 @@ describe('baseline-store', () => {
       timestamp: '2026-05-21T08:00:00Z',
       item_count: 9,
     });
+    vi.mocked(getStateSummary).mockResolvedValue({
+      total: 16,
+      restorable_count: 7,
+      detectable_count: 8,
+      excluded_count: 1,
+    });
+    vi.mocked(getSnapshotDetails).mockResolvedValue([]);
 
     await useBaselineStore.getState().startAssessment();
 

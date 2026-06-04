@@ -372,6 +372,8 @@ impl<E: ShellExecutor> LinuxBaseAdapter<E> {
         let result = self.executor.execute(
             "curl",
             &[
+                "--noproxy",
+                "*",
                 "-s",
                 "-o",
                 "/dev/null",

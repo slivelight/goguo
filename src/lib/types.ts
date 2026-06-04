@@ -15,6 +15,15 @@ export interface StateSummaryResponse {
   excluded_count: number;
 }
 
+export interface SnapshotItem {
+  id: string;
+  platform: string;
+  category: string;
+  value: Record<string, unknown>;
+  collected_at: string;
+  classification_reason: string;
+}
+
 export interface ComparisonItem {
   state_item_id: string;
   result: ComparisonResult;
@@ -87,6 +96,7 @@ export interface SiteInfo {
   id: string;
   name: string;
   domain_count: number;
+  domains: Record<string, string[]>;
 }
 
 export interface FiveElementPrompt {
@@ -212,4 +222,25 @@ export interface ServiceStartedPayload {
 export interface AutoRecoveryTriggeredPayload {
   restart_attempts: number;
   max_attempts: number;
+}
+
+export interface SiteDefinitionInfo {
+  id: string;
+  name: string;
+  domain_count: number;
+  domains: Record<string, string[]>;
+}
+
+export interface CreateSiteResponse {
+  success: boolean;
+  site?: SiteDefinitionInfo;
+  rules_generated: number;
+  error?: string;
+}
+
+export interface UpdateSiteDomainsResponse {
+  success: boolean;
+  site?: SiteDefinitionInfo;
+  rules_generated: number;
+  error?: string;
 }

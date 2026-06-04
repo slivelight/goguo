@@ -1,19 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDiagStore } from '../stores/diag-store';
 import { useNotifStore } from '../stores/notif-store';
 import StatusBadge from '../components/shared/StatusBadge';
 
 function DiagnosticsPage() {
-  const { 
-    reachability, 
-    nodePool, 
-    auditLog, 
-    fetchReachability, 
-    fetchNodePool, 
+  const [auditOffset, setAuditOffset] = useState(0);
+
+  const {
+    reachability,
+    nodePool,
+    auditLog,
+    fetchReachability,
+    fetchNodePool,
     fetchAuditLog,
     diagnoseSite,
-    isLoading 
+    isLoading
   } = useDiagStore();
   const navigate = useNavigate();
   const { addNotification } = useNotifStore();
@@ -21,7 +23,7 @@ function DiagnosticsPage() {
   useEffect(() => {
     fetchReachability();
     fetchNodePool();
-    fetchAuditLog();
+    fetchAuditLog(0, 20);
   }, []);
 
   const handleDiagnoseSite = async (siteId: string) => {
@@ -150,15 +152,22 @@ function DiagnosticsPage() {
                 {(!r.reachable || (r.response_time_ms ?? 0) > 2000) && (
                   <div style={{
                     marginTop: '8px',
-                    padding: '6px 8px',
+                    padding: '8px',
                     background: 'var(--color-bg-secondary, #f5f5f5)',
-                    borderRadius: '4px',
+                    borderRadius: '6px',
                     fontSize: '12px',
                     color: 'var(--color-text-secondary)'
                   }}>
                     {r.reachable === false && (
                       <>
-                        <div>建议操作：重新诊断 或 检查节点池状态</div>
+                        <div style={{ fontWeight: '600', marginBottom: '4px', color: 'var(--color-error, #e74c3c)' }}>站点不可达</div>
+                        <div>可能原因：代理节点故障、DNS 解析失败、网络中断</div>
+                        <div style={{ marginTop: '4px' }}>建议操作：</div>
+                        <ul style={{ margin: '2px 0', paddingLeft: '16px' }}>
+                          <li>点击"重新诊断"再次检测</li>
+                          <li>检查节点池中当前节点是否正常</li>
+                          <li>前往设置切换代理节点</li>
+                        </ul>
                         <button
                           className="btn btn-secondary"
                           style={{ fontSize: '11px', padding: '2px 6px', marginTop: '4px' }}
@@ -169,7 +178,10 @@ function DiagnosticsPage() {
                       </>
                     )}
                     {r.reachable && (r.response_time_ms ?? 0) > 2000 && (
-                      <div>响应较慢（{r.response_time_ms}ms），建议切换节点</div>
+                      <>
+                        <div>响应较慢（{r.response_time_ms}ms）</div>
+                        <div>建议：检查当前节点延迟，或切换到延迟更低的节点</div>
+                      </>
                     )}
                   </div>
                 )}
@@ -188,7 +200,7 @@ function DiagnosticsPage() {
           <p style={{ color: 'var(--color-text-secondary)' }}>暂无审计记录</p>
         ) : (
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {auditLog.records.slice(0, 10).map((record, idx) => (
+            {auditLog.records.map((record, idx) => (
               <div 
                 key={idx} 
                 style={{ 
@@ -211,13 +223,19 @@ function DiagnosticsPage() {
             ))}
           </div>
         )}
-        <button 
-          className="btn btn-secondary" 
-          style={{ marginTop: '12px' }}
-          onClick={() => fetchAuditLog(0, 20)}
-        >
-          加载更多
-        </button>
+        {auditLog.records.length < auditLog.total_count && (
+          <button
+            className="btn btn-secondary"
+            style={{ marginTop: '12px' }}
+            onClick={() => {
+              const next = auditOffset + 20;
+              setAuditOffset(next);
+              fetchAuditLog(next, 20);
+            }}
+          >
+            加载更多
+          </button>
+        )}
       </div>
     </div>
   );

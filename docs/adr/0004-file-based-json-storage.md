@@ -1,6 +1,6 @@
 # ADR-0004: 数据存储策略 — 安装根目录下文件式 JSON
 
-- **Status**: accepted
+- **Status**: accepted (amended 2026-06-02)
 - **Date**: 2026-05-12
 - **Deciders**: 用户
 - **Affected Features**: 001, 002, 003, 004
@@ -71,6 +71,35 @@
 - **正面**: 零依赖存储；文件可直接用文本编辑器审查；备份和恢复通过文件复制即可；站点定义直接复用现有 `config/sites/*.json` 格式。
 - **负面**: 审计日志增长需定期清理策略；无原子写入保障（需通过 write-to-temp + rename 模式模拟）；并发写入需加文件锁。
 - **数据安全**: 所有文件遵循 OS 最小权限原则（Feature 001 NFR-3.3-4）；审计日志不含用户访问明细（Feature 001 FR-2.7.1-R6~R8）。
+
+## Amendment (2026-06-02)
+
+v0.1.0 实现误用 Tauri `app_data_dir()` 作为数据根目录，与本文档的 `<install-root>/data/` 结构不一致。本次修正：
+
+- **生产模式**：`std::env::current_exe().parent()` 作为 `install_root`（用户解压后的目录）
+- **开发模式**：`<CARGO_MANIFEST_DIR>/../../release/` 作为 `install_root`
+- **打包方式**：从 NSIS/deb/rpm 改为便携包（zip/tar.gz + AppImage）
+- **目录结构微调**：mihomo 二进制放 `bin/mihomo`，配置/数据放 `data/mihomo/`（与 `AppConfig::default_for()` 实现对齐）
+
+修正后的目录结构：
+
+```text
+<install-root>/
+  goguo(.exe)                      # 主二进制
+  bin/
+    mihomo                         # mihomo 二进制
+  data/
+    baseline/
+    audit/
+    config/
+      settings.json
+      site-definitions/
+    rules/
+    mihomo/
+      config.yaml                  # mihomo 运行配置
+```
+
+无数据迁移（当前无外部用户）。
 
 ## References
 

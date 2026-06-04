@@ -6,7 +6,7 @@ vi.mock('@tauri-apps/api/core', () => ({
     if (cmd === 'add_target_site') {
       return Promise.resolve({
         success: true,
-        site: { id: args?.siteId, name: 'Test', domain_count: 5 },
+        site: { id: args?.siteId, name: 'Test', domain_count: 5, domains: {} },
         rules_generated: 10,
         verification_passed: true,
       });

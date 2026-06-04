@@ -500,7 +500,7 @@ mod tests {
             .with_output(
                 "curl",
                 &[
-                    "-s", "-o", "/dev/null", "-w", "%{http_code}",
+                    "--noproxy", "*", "-s", "-o", "/dev/null", "-w", "%{http_code}",
                     "--connect-timeout", "5", "--max-time", "10",
                     "https://www.google.com",
                 ],
@@ -525,7 +525,7 @@ mod tests {
             .with_output(
                 "curl",
                 &[
-                    "-s", "-o", "/dev/null", "-w", "%{http_code}",
+                    "--noproxy", "*", "-s", "-o", "/dev/null", "-w", "%{http_code}",
                     "--connect-timeout", "5", "--max-time", "10",
                     "https://www.google.com",
                 ],

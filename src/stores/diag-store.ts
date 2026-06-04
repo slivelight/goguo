@@ -68,7 +68,14 @@ export const useDiagStore = create<DiagState & DiagActions>((set) => ({
   fetchAuditLog: async (offset?: number, limit?: number) => {
     try {
       const log = await getAuditLog({ offset, limit });
-      set({ auditLog: log });
+      set((state) => ({
+        auditLog: {
+          total_count: log.total_count,
+          records: offset && offset > 0
+            ? [...state.auditLog.records, ...log.records]
+            : log.records,
+        },
+      }));
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to fetch audit log',

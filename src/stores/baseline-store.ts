@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { BaselineConfirmedPayload, BaselineDeviationPayload, ComparisonItem } from '../lib/types';
-import { getBaselineStatus, confirmBaseline, startInitialAssessment, triggerReadjustment } from '../lib/tauri-ipc';
+import type { BaselineConfirmedPayload, BaselineDeviationPayload, ComparisonItem, SnapshotItem, StateSummaryResponse } from '../lib/types';
+import { getBaselineStatus, confirmBaseline, startInitialAssessment, triggerReadjustment, getStateSummary, getSnapshotDetails } from '../lib/tauri-ipc';
 import { subscribeBaselineConfirmed, subscribeBaselineDeviation } from '../lib/events';
 
 interface BaselineState {
@@ -8,6 +8,8 @@ interface BaselineState {
   items: ComparisonItem[];
   version: number | null;
   itemCount: number | null;
+  stateSummary: StateSummaryResponse | null;
+  snapshotItems: SnapshotItem[];
   deviatedItems: string[];
   isLoading: boolean;
   error: string | null;
@@ -22,6 +24,7 @@ interface BaselineActions {
   handleBaselineDeviation: (payload: BaselineDeviationPayload) => void;
   getDeviatedCount: () => number;
   getMatchCount: () => number;
+  resetAssessment: () => void;
   reset: () => void;
 }
 
@@ -30,6 +33,8 @@ const initialState: BaselineState = {
   items: [],
   version: null,
   itemCount: null,
+  stateSummary: null,
+  snapshotItems: [],
   deviatedItems: [],
   isLoading: false,
   error: null,
@@ -77,10 +82,16 @@ export const useBaselineStore = create<BaselineState & BaselineActions>((set, ge
     set({ isLoading: true, error: null });
     try {
       const response = await startInitialAssessment();
+      const [summary, details] = await Promise.all([
+        getStateSummary(),
+        getSnapshotDetails(),
+      ]);
       set({
         hasBaseline: false,
         version: response.version,
         itemCount: response.item_count,
+        stateSummary: summary,
+        snapshotItems: details,
         isLoading: false,
       });
     } catch (err) {
@@ -131,6 +142,13 @@ export const useBaselineStore = create<BaselineState & BaselineActions>((set, ge
     const state = get();
     return state.items.filter((item) => item.result === 'match').length;
   },
+
+  resetAssessment: () => set({
+    itemCount: null,
+    stateSummary: null,
+    snapshotItems: [],
+    version: null,
+  }),
 
   reset: () => set(initialState),
 }));

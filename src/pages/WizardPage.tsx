@@ -3,7 +3,7 @@ import { useWizardStore } from '../stores/wizard-store';
 import type { WizardStep } from '../stores/wizard-store';
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/shared/StatusBadge';
-import { detectDeploymentMode, startInitialAssessment, confirmBaseline, applyPresetTemplate } from '../lib/tauri-ipc';
+import { detectDeploymentMode, startInitialAssessment, confirmBaseline, applyPresetTemplate, addTargetSite } from '../lib/tauri-ipc';
 import { useNotifStore } from '../stores/notif-store';
 
 function WizardPage() {
@@ -30,10 +30,10 @@ function WizardPage() {
   }, []);
 
   const deploymentModes = [
-    { id: 'windows_only', label: 'Windows Only', desc: '仅在 Windows 上运行' },
-    { id: 'wsl_only', label: 'WSL Only', desc: '仅在 WSL 上运行' },
-    { id: 'linux_only', label: 'Linux Only', desc: '仅在 Linux 上运行' },
-    { id: 'coordinated', label: 'Coordinated', desc: 'Windows + WSL 协调模式' },
+    { id: 'windows_only', label: 'Windows Only', desc: '仅在 Windows 上运行', impact: '仅监控和管理 Windows 系统的代理配置（hosts、系统代理、PAC）。适用于纯 Windows 环境或 WSL 网络由 Windows 代理覆盖的场景。' },
+    { id: 'wsl_only', label: 'WSL Only', desc: '仅在 WSL 上运行', impact: '仅监控和管理 WSL Linux 环境的代理配置（环境变量、Git 代理、DNS）。适用于所有工作都在 WSL 内完成的场景。' },
+    { id: 'linux_only', label: 'Linux Only', desc: '仅在 Linux 上运行', impact: '仅监控和管理原生 Linux 系统的代理配置。适用于纯 Linux 桌面环境。' },
+    { id: 'coordinated', label: 'Coordinated', desc: 'Windows + WSL 协调模式', impact: '同时管理 Windows 和 WSL 两侧的代理配置，确保双环境网络一致性。适用于 Windows + WSL 混合开发场景。' },
   ];
 
   const siteOptions = [
@@ -75,7 +75,15 @@ function WizardPage() {
       case 'site-selection':
         if (selectedSites.length > 0) {
           try {
-            await applyPresetTemplate('developer');
+            const developerIds = ['github', 'npm', 'docker', 'claude'];
+            const isDeveloperSubset = selectedSites.every(s => developerIds.includes(s));
+            if (isDeveloperSubset && selectedSites.length >= 2) {
+              await applyPresetTemplate('developer');
+            } else {
+              for (const siteId of selectedSites) {
+                await addTargetSite(siteId);
+              }
+            }
             addNotification('success', '站点已添加', `已添加 ${selectedSites.length} 个站点`);
             markComplete('site-selection');
             nextStep();
@@ -188,6 +196,9 @@ function WizardPage() {
                   <div style={{ fontWeight: '600' }}>{mode.label}</div>
                   <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                     {mode.desc}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', lineHeight: '1.4' }}>
+                    {mode.impact}
                   </div>
                 </div>
               ))}
