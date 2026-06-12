@@ -331,6 +331,7 @@ use std::sync::Mutex;
 
 use crate::managers::baseline_manager::{BaselineManager, ComparisonResult};
 use crate::managers::mihomo_manager::MihomoManager;
+use std::sync::Arc;
 use crate::services::audit_logger::AuditLogger;
 use crate::services::proxy_guard::ProxyGuard;
 use tauri::{Emitter, Manager};
@@ -338,7 +339,7 @@ use tauri::{Emitter, Manager};
 /// Shared application state injected into Tauri commands via `tauri::State`.
 pub struct AppState {
     pub baseline_manager: Mutex<BaselineManager>,
-    pub mihomo_manager: Mutex<MihomoManager>,
+    pub mihomo_manager: Arc<Mutex<MihomoManager>>,
     pub proxy_guard: Mutex<ProxyGuard>,
     pub audit_logger: Mutex<AuditLogger>,
     pub deployment_manager: Mutex<DeploymentManager>,
@@ -360,7 +361,7 @@ impl AppState {
     /// # Errors
     ///
     /// Returns an I/O error if the config or audit directories cannot be created.
-    pub fn new(install_root: &Path) -> std::io::Result<Self> {
+    pub fn new(install_root: &Path, mihomo_manager: Arc<Mutex<MihomoManager>>) -> std::io::Result<Self> {
         let data_dir = install_root.join("data");
         let storage = BaselineStorage::new(data_dir.join("baseline"));
 
@@ -384,7 +385,6 @@ impl AppState {
         let deployment_manager = Mutex::new(depl_mgr);
 
         let app_config = AppConfig::default_for(install_root.to_path_buf());
-        let mihomo_manager = Mutex::new(MihomoManager::new(app_config.mihomo));
         let proxy_guard = Mutex::new(ProxyGuard::new(app_config.proxy_guard));
 
         let audit_logger = Mutex::new(AuditLogger::new(data_dir.join("audit"))?);
@@ -827,13 +827,17 @@ pub fn tauri_trigger_readjustment(state: tauri::State<'_, AppState>) -> Result<A
     state.service_paused.store(false, std::sync::atomic::Ordering::Relaxed);
 
     // F108-2: apply proxy-env before re-assessment
+    // F109: determine proxy address based on WSL network mode (NAT vs mirrored)
     let mixed_port = {
         let mihomo = state.mihomo_manager.lock().expect("lock");
         mihomo.mixed_port()
     };
     {
         let baseline_mgr = state.baseline_manager.lock().expect("lock");
+        let proxy_address = baseline_mgr.determine_proxy_address(mixed_port);
         let _ = baseline_mgr.apply_proxy_env(mixed_port);
+        let _ = baseline_mgr.activate_system_proxy(&proxy_address);
+        drop(baseline_mgr);
     }
 
     let mgr = state.baseline_manager.lock().expect("lock");
@@ -1071,11 +1075,32 @@ pub fn tauri_get_network_mode(state: tauri::State<'_, AppState>) -> Result<Netwo
 ///
 /// Panics if any `Mutex` lock is poisoned (i.e., another thread panicked while holding the lock).
 #[allow(clippy::needless_pass_by_value)]
+/// Detect system wake from sleep by checking for a time gap.
+///
+/// When the system sleeps, `thread::sleep(3s)` may actually take minutes or hours.
+/// Any gap > 30s between expected 3s intervals indicates a wake-from-sleep event.
+///
+/// Visible for testing.
+#[must_use]
+pub fn detect_wake_from_sleep(elapsed: std::time::Duration) -> bool {
+    elapsed > std::time::Duration::from_secs(30)
+}
+
 pub fn proxy_guard_loop(app: tauri::AppHandle) {
     let check_interval = 3u64; // seconds, matches ProxyGuardConfig default
+    let mut last_tick = std::time::SystemTime::now();
 
     loop {
         std::thread::sleep(std::time::Duration::from_secs(check_interval));
+
+        // F111-T5: Detect system wake from sleep via wall-clock time gap.
+        // Uses SystemTime (CLOCK_REALTIME) instead of Instant (CLOCK_MONOTONIC)
+        // because CLOCK_MONOTONIC stops during WSL2 VM pause, making the gap
+        // invisible. CLOCK_REALTIME advances during sleep, so the gap is
+        // detected correctly, allowing us to wake the frozen GLib main loop.
+        let elapsed = last_tick.elapsed().unwrap_or(std::time::Duration::from_secs(check_interval));
+        last_tick = std::time::SystemTime::now();
+        let woke_from_sleep = detect_wake_from_sleep(elapsed);
 
         let state = app.state::<AppState>();
 
@@ -1089,14 +1114,66 @@ pub fn proxy_guard_loop(app: tauri::AppHandle) {
             continue;
         }
 
+        // F111-T5: On wake, flush stale proxy groups and wake GLib main loop.
+        // The app.emit() call writes to GLib's wakeup pipe, forcing poll() to
+        // return and restoring UI responsiveness.
+        if woke_from_sleep {
+            eprintln!(
+                "[GoGuo] Wake detected: {:?} gap, flushing URLTest groups",
+                elapsed
+            );
+            let _ = app.emit("proxy:recovering", serde_json::json!({
+                "reason": "post-wake",
+                "sleep_duration_secs": elapsed.as_secs(),
+            }));
+            // Clone config inside lock, release before blocking I/O
+            let (addr, secret) = {
+                let mihomo = state.mihomo_manager.lock().expect("lock");
+                (mihomo.api_address().to_string(), mihomo.api_secret().to_string())
+            };
+            match crate::managers::mihomo_manager::flush_urltest_groups(&addr, &secret) {
+                Ok(n) => eprintln!("[GoGuo] Flushed {n} URLTest groups"),
+                Err(e) => eprintln!("[GoGuo] Flush failed: {e}"),
+            }
+            let _ = app.emit("proxy:recovered", serde_json::json!({
+                "flushed_groups": true,
+            }));
+        }
+
+        // F111-T3: Check mihomo health OUTSIDE the lock to avoid blocking UI.
+        // Quick TCP port check (500ms timeout) instead of full is_running().
+        let is_running = {
+            let mihomo = state.mihomo_manager.lock().expect("lock");
+            mihomo.check_api_port()
+        }; // Lock released before any slow operation.
+
+        // Decision phase: quick locks, no blocking I/O.
+        // Only the healthy-path adoption (fast TCP check) stays inside locks.
         let action = {
             let mut guard = state.proxy_guard.lock().expect("lock");
-            let mut mihomo = state.mihomo_manager.lock().expect("lock");
-            guard.check_and_recover(&mut mihomo)
-        };
+            if is_running {
+                // Fast path: port is responding. Ensure MihomoManager has adopted
+                // the process (F107) so is_running() returns true for UI queries.
+                let mut mihomo = state.mihomo_manager.lock().expect("lock");
+                if !mihomo.is_adopted() {
+                    let _ = mihomo.start(); // adopt existing process (~500ms)
+                }
+                guard.reset_restart_count();
+                crate::services::proxy_guard::GuardAction::Healthy
+            } else {
+                // Decision only — NO mihomo.start() call inside locks.
+                guard.schedule_restart()
+            }
+        }; // All locks released here.
 
+        // Execution phase: blocking start() with only mihomo_manager lock.
         match action {
             crate::services::proxy_guard::GuardAction::Restarted { attempt } => {
+                // Restart mihomo — only hold mihomo_manager lock (NOT proxy_guard).
+                let _start_ok = {
+                    let mut mihomo = state.mihomo_manager.lock().expect("lock");
+                    mihomo.start()
+                };
                 let max = {
                     let guard = state.proxy_guard.lock().expect("lock");
                     guard.max_restart_attempts()
@@ -1172,6 +1249,36 @@ fn trigger_baseline_restore(state: &AppState, app: &tauri::AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Helper to create a shared MihomoManager for tests.
+    fn test_mihomo_manager(dir: &std::path::Path) -> Arc<Mutex<MihomoManager>> {
+        let config = crate::models::config::AppConfig::default_for(dir.to_path_buf());
+        Arc::new(Mutex::new(MihomoManager::new(config.mihomo)))
+    }
+
+    // ── Response DTO round-trip tests ──────────────────────────────────────
+
+    // ── F111-T5: Wake detection tests ────────────────────────────────────
+
+    #[test]
+    fn detect_wake_with_large_time_gap() {
+        // 5 minutes gap → definitely woke from sleep.
+        assert!(detect_wake_from_sleep(std::time::Duration::from_secs(300)));
+    }
+
+    #[test]
+    fn detect_wake_with_boundary_31s() {
+        // Just over 30s → triggers.
+        assert!(detect_wake_from_sleep(std::time::Duration::from_secs(31)));
+    }
+
+    #[test]
+    fn no_wake_detected_with_normal_interval() {
+        // 3-5s is normal loop interval.
+        assert!(!detect_wake_from_sleep(std::time::Duration::from_secs(3)));
+        assert!(!detect_wake_from_sleep(std::time::Duration::from_secs(5)));
+        assert!(!detect_wake_from_sleep(std::time::Duration::from_secs(29)));
+    }
 
     // ── Response DTO round-trip tests ──────────────────────────────────────
 
@@ -2086,14 +2193,14 @@ mod tests {
     #[test]
     fn app_state_is_restoring_default_false() {
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let state = AppState::new(dir.path()).expect("create state");
+        let state = AppState::new(dir.path(), test_mihomo_manager(dir.path())).expect("create state");
         assert!(!state.is_restoring.load(std::sync::atomic::Ordering::Relaxed));
     }
 
     #[test]
     fn is_restoring_set_and_clear() {
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let state = AppState::new(dir.path()).expect("create state");
+        let state = AppState::new(dir.path(), test_mihomo_manager(dir.path())).expect("create state");
 
         // Simulate: set restoring
         state.is_restoring.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -2107,7 +2214,7 @@ mod tests {
     #[test]
     fn stop_service_blocked_when_restoring() {
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let state = AppState::new(dir.path()).expect("create state");
+        let state = AppState::new(dir.path(), test_mihomo_manager(dir.path())).expect("create state");
 
         // Simulate restore in progress
         state.is_restoring.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -2121,7 +2228,7 @@ mod tests {
     #[test]
     fn stop_service_allowed_when_not_restoring() {
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let state = AppState::new(dir.path()).expect("create state");
+        let state = AppState::new(dir.path(), test_mihomo_manager(dir.path())).expect("create state");
 
         // Not restoring — should be allowed
         let result = check_not_restoring(&state);
@@ -2133,14 +2240,14 @@ mod tests {
     #[test]
     fn app_state_service_paused_default_false() {
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let state = AppState::new(dir.path()).expect("create state");
+        let state = AppState::new(dir.path(), test_mihomo_manager(dir.path())).expect("create state");
         assert!(!state.service_paused.load(std::sync::atomic::Ordering::Relaxed));
     }
 
     #[test]
     fn stop_service_sets_service_paused() {
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let state = AppState::new(dir.path()).expect("create state");
+        let state = AppState::new(dir.path(), test_mihomo_manager(dir.path())).expect("create state");
 
         // Before stop: not paused
         assert!(!state.service_paused.load(std::sync::atomic::Ordering::Relaxed));
@@ -2160,7 +2267,7 @@ mod tests {
     #[test]
     fn proxy_guard_skips_restart_when_paused() {
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let state = AppState::new(dir.path()).expect("create state");
+        let state = AppState::new(dir.path(), test_mihomo_manager(dir.path())).expect("create state");
 
         // Simulate user stopped service
         state.service_paused.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -2178,7 +2285,7 @@ mod tests {
     #[test]
     fn trigger_readjustment_clears_service_paused() {
         let dir = tempfile::TempDir::new().expect("temp dir");
-        let state = AppState::new(dir.path()).expect("create state");
+        let state = AppState::new(dir.path(), test_mihomo_manager(dir.path())).expect("create state");
 
         // Set paused (simulating a previous stop)
         state.service_paused.store(true, std::sync::atomic::Ordering::Relaxed);
