@@ -1,0 +1,29 @@
+{
+  "deployment_mode": "coordinated",
+  "install_root": "/home/slivelight/projects/goguo/release",
+  "mihomo": {
+    "binary_path": "/home/slivelight/projects/goguo/release/bin/mihomo",
+    "config_dir": "/home/slivelight/projects/goguo/release/data/mihomo",
+    "api_address": "127.0.0.1:9090",
+    "api_secret": "",
+    "mixed_port": 7890,
+    "log_level": "warning"
+  },
+  "proxy_guard": {
+    "check_interval_secs": 3,
+    "max_restart_attempts": 3,
+    "restart_cooldown_secs": 10
+  },
+  "probe": {
+    "timeout_secs": 5,
+    "max_concurrent": 10
+  },
+  "non_target_probe_sites": [
+    "https://www.baidu.com",
+    "https://www.bing.com"
+  ],
+  "notifications": {
+    "enabled": true,
+    "sound": true
+  }
+}
