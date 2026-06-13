@@ -1,0 +1,2237 @@
+tcp-concurrent: true
+unified-delay: true
+keep-alive-interval: 30
+ipv6: false
+
+mixed-port: 7890
+socks-port: 7891
+external-controller: 127.0.0.1:9090
+mode: rule
+log-level: info
+allow-lan: true
+
+dns:
+  enable: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "*.localhost"
+    - "ntp.*"
+    - "time.*"
+    - "+.mshome.net"
+    - "+.local"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+    - "dns.msftncsi.com"
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  fallback:
+    - https://dns.google/dns-query
+    - https://cloudflare-dns.com/dns-query
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+hosts:
+  '+.githubassets.com': "185.199.111.215"
+  '+.githubusercontent.com': "185.199.111.154"
+  'api.github.com': "20.27.177.113"
+  'auth.github.com': "140.82.112.3"
+  'codeload.github.com': "20.27.177.113"
+  'copilot.github.com': "140.82.113.4"
+  'education.github.com': "140.82.114.21"
+  'gist.github.com': "140.82.112.3"
+  'github.com': "140.82.114.4"
+  'github.io': "185.199.109.153"
+  'graphql.github.com': "140.82.114.3"
+  'lfs.github.com': "140.82.114.4"
+  'live.github.com': "140.82.112.3"
+  'pages.github.com': "140.82.114.4"
+  'raw.githubusercontent.com': "185.199.111.133"
+  'ssh.github.com': "140.82.113.4"
+  'uploads.github.com': "140.82.112.4"
+  'vscode-auth.github.com': "140.82.114.4"
+
+rule-providers:
+  custom-direct:
+    type: file
+    behavior: classical
+    path: ./ruleset/custom-direct.yaml
+  custom-block:
+    type: file
+    behavior: classical
+    path: ./ruleset/custom-block.yaml
+  site-github:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-github.yaml
+  site-npmjs:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-npmjs.yaml
+  site-claude:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-claude.yaml
+  site-chatgpt:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-chatgpt.yaml
+  site-oracle:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-oracle.yaml
+  site-docker:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-docker.yaml
+  site-stackoverflow:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-stackoverflow.yaml
+  site-pypi:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-pypi.yaml
+  site-crates:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-crates.yaml
+  site-google:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-google.yaml
+  site-wikipedia:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-wikipedia.yaml
+  site-whatsapp:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-whatsapp.yaml
+  site-instagram:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-instagram.yaml
+  site-canva:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-canva.yaml
+  site-twitter-x:
+    type: file
+    behavior: classical
+    path: ./ruleset/site-twitter-x.yaml
+
+proxies:
+  -
+    name: SS--NF-ChatGPT-144.217.164.2912000
+    type: ss
+    server: 144.217.164.29
+    port: 12000
+    cipher: aes-256-gcm
+    password: 8JCsPssfgS8tiRwiMlhARg==
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-547
+    type: vmess
+    server: 547.rtxconfigz.shop
+    port: 8080
+    uuid: 44e57485-eccc-46ef-808f-cd17ac810018
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: "/@Malinda6104"
+      headers:
+        Host: 547.rtxconfigz.shop
+  -
+    name: VMESS--NF-ChatGPT-YouTube-t1.620720.
+    type: vmess
+    server: t1.620720.xyz
+    port: 8443
+    uuid: 516d8a7a-3f0b-41d3-bad0-246116381516
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /
+      headers:
+        Host: t1.620720.xyz
+    tls: true
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-45.15
+    type: ss
+    server: 45.154.204.7
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: ARgvGZywA+gacgGV26Bvmu05+wZmRW/j+AdU+Z8Bt44=
+  -
+    name: SS--NF-ChatGPT-TikTok-146.19.49.251443
+    type: ss
+    server: 146.19.49.251
+    port: 443
+    cipher: chacha20-ietf-poly1305
+    password: ODfxioK0VkKxTdpVQJ4rv8HglAu0vzv6
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-15.
+    type: vmess
+    server: 15.235.41.200
+    port: 80
+    uuid: 58fe1542-5290-40ad-815a-77707a81afe5
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /IOebhLMhl1CTbFHbL95myfRX2
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143
+    type: ss
+    server: 71.19.148.143
+    port: 443
+    cipher: chacha20-ietf-poly1305
+    password: p78naCf2EfOlRSLTX0wFVx
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2
+    type: vmess
+    server: 38.92.10.226
+    port: 45979
+    uuid: 23bdf6df-c482-46d0-c0f4-5a98d534ea11
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /test
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-23.95.7
+    type: ss
+    server: 23.95.76.59
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: ARgvGZywA+gacgGV26Bvmu05+wZmRW/j+AdU+Z8Bt44=
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-51.
+    type: vmess
+    server: 51.79.102.253
+    port: 80
+    uuid: 58fe1542-5290-40ad-815a-77707a81afe5
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /IOebhLMhl1CTbFHbL95myfRX2
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10
+    type: ss
+    server: 92.118.112.101
+    port: 9483
+    cipher: chacha20-ietf-poly1305
+    password: qFvn2fNEvBgM5knffrN96q
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49
+    type: ss
+    server: 15.204.247.49
+    port: 12000
+    cipher: aes-256-gcm
+    password: 8JCsPssfgS8tiRwiMlhARg==
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin
+    type: ss
+    server: pupas-shirting-unsung.freesocks.work
+    port: 443
+    cipher: chacha20-ietf-poly1305
+    password: p78naCf2EfOlRSLTX0wFVx
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-79.127.
+    type: ss
+    server: 79.127.233.170
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: f8f7aCzcPKbsF8p3
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code
+    type: vmess
+    server: v2ray.codefyinc.com
+    port: 443
+    uuid: 2c981164-9b93-4bca-94ff-b78d3f8498d7
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /vmessws
+      headers:
+        Host: v2ray.codefyinc.com
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464
+    type: ss
+    server: 23.95.75.146
+    port: 443
+    cipher: chacha20-ietf-poly1305
+    password: NDRySIABARbErNIVsCNVkyYAHiBzhveT
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174
+    type: vmess
+    server: 198.23.174.168
+    port: 20086
+    uuid: 2b36304b-4f88-4ff5-9033-f4d57dbb5490
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai
+    type: vmess
+    server: cg1c07.waimaojd.com
+    port: 443
+    uuid: be8e3136-b874-4085-bd23-ec3699300490
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /api/v1/graphql
+      headers:
+        Host: cg1c07.waimaojd.com
+    tls: true
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-sup
+    type: vmess
+    server: support.zoom.us
+    port: 8080
+    uuid: 44e57485-eccc-46ef-808f-cd17ac810018
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: "/@Malinda6104"
+      headers:
+        Host: support.zoom.us
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84
+    type: vmess
+    server: 209.126.84.189
+    port: 443
+    uuid: 2c981164-9b93-4bca-94ff-b78d3f8498d7
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /vmessws
+      headers:
+        Host: 209.126.84.189
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-sy
+    type: vmess
+    server: sy4.620720.xyz
+    port: 443
+    uuid: 516d8a7a-3f0b-41d3-bad0-246116381516
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /
+      headers:
+        Host: sy4.620720.xyz
+    tls: true
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan
+    type: vmess
+    server: hgtrojan.zabc.net
+    port: 2083
+    uuid: e6395c20-4571-4b34-d6b1-55a5d36e49ea
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /e6395c20
+      headers:
+        Host: hgtrojan.zabc.net
+    tls: true
+  -
+    name: SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20
+    type: ss
+    server: 107.175.87.207
+    port: 10011
+    cipher: chacha20-ietf-poly1305
+    password: 86039b71-ba82-4ca8-838e-87086ae666de
+  -
+    name: VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai
+    type: vmess
+    server: cg1c01.waimaojd.com
+    port: 443
+    uuid: be8e3136-b874-4085-bd23-ec3699300490
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /api/v1/graphql
+      headers:
+        Host: cg1c01.waimaojd.com
+    tls: true
+  -
+    name: VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co
+    type: vmess
+    server: cg1c04.waimaojd.com
+    port: 443
+    uuid: be8e3136-b874-4085-bd23-ec3699300490
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /api/v1/graphql
+      headers:
+        Host: cg1c04.waimaojd.com
+    tls: true
+  -
+    name: VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co
+    type: vmess
+    server: cg1c14.waimaojd.com
+    port: 443
+    uuid: be8e3136-b874-4085-bd23-ec3699300490
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /api/v1/graphql
+      headers:
+        Host: cg1c14.waimaojd.com
+    tls: true
+  -
+    name: V2CROSS.COM-1
+    type: ss
+    server: 82.38.31.69
+    port: 8080
+    cipher: chacha20-ietf-poly1305
+    password: oZIoA69Q8yhcQV8ka3Pa3A
+  -
+    name: V2CROSS.COM-2
+    type: vmess
+    server: 107.175.91.118
+    port: 443
+    uuid: 1bb1f95f-7425-4442-93f7-8fc1bd1a2001
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /
+    tls: true
+  -
+    name: V2CROSS.COM-3
+    type: ss
+    server: 82.38.31.89
+    port: 8080
+    cipher: chacha20-ietf-poly1305
+    password: oZIoA69Q8yhcQV8ka3Pa3A
+  -
+    name: Microsoft-1
+    type: ss
+    server: admin.c1.webramz.co
+    port: 443
+    cipher: chacha20-ietf-poly1305
+    password: W74XFALLLuw6m5IA
+  -
+    name: V2CROSS.COM-4
+    type: vmess
+    server: 82.198.246.37
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: V2CROSS.COM-5
+    type: ss
+    server: 154.26.132.38
+    port: 16922
+    cipher: chacha20-ietf-poly1305
+    password: 42d2b47181a32de7
+  -
+    name: V2CROSS.COM-6
+    type: vmess
+    server: 82.198.246.9
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: CDNetworks-1
+    type: ss
+    server: 163.171.206.24
+    port: 44233
+    cipher: chacha20-ietf-poly1305
+    password: 9d97433688e7efd5
+  -
+    name: ss-chengbai02.ascwt179.com-1
+    type: ss
+    server: chengbai02.ascwt179.com
+    port: 13223
+    cipher: aes-128-gcm
+    password: JVrsLLN1tkN8oXZO
+  -
+    name: V2CROSS.COM-7
+    type: ss
+    server: 119.159.245.24
+    port: 26736
+    cipher: chacha20-ietf-poly1305
+    password: 1d1bc54689ed4b75
+  -
+    name: V2CROSS.COM-8
+    type: vmess
+    server: 82.198.246.250
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: V2CROSS.COM-9
+    type: ss
+    server: 138.186.142.80
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: ARgvGZywA+gacgGV26Bvmu05+wZmRW/j+AdU+Z8Bt44=
+  -
+    name: V2CROSS.COM-10
+    type: ss
+    server: 147.78.1.230
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: ARgvGZywA+gacgGV26Bvmu05+wZmRW/j+AdU+Z8Bt44=
+  -
+    name: V2CROSS.COM-11
+    type: vmess
+    server: 82.198.246.37
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: V2CROSS.COM-12
+    type: ss
+    server: 119.159.245.24
+    port: 26739
+    cipher: chacha20-ietf-poly1305
+    password: 1d1bc54689ed4b75
+  -
+    name: V2CROSS.COM-13
+    type: vmess
+    server: 5.188.190.252
+    port: 22324
+    uuid: 04621bae-ab36-11ec-b909-0242ac120002
+    alterId: 1
+    cipher: auto
+  -
+    name: V2CROSS.COM-14
+    type: vmess
+    server: 82.198.246.250
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: V2CROSS.COM-15
+    type: ss
+    server: 138.186.143.32
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: ARgvGZywA+gacgGV26Bvmu05+wZmRW/j+AdU+Z8Bt44=
+  -
+    name: V2CROSS.COM-16
+    type: ss
+    server: 82.38.31.210
+    port: 8080
+    cipher: chacha20-ietf-poly1305
+    password: k1dBOmOB4oqi7Ump37a1bQ
+  -
+    name: V2CROSS.COM-17
+    type: vmess
+    server: 103.181.164.145
+    port: 54022
+    uuid: 418048af-a293-4b99-9b0c-98ca3580dd24
+    alterId: 64
+    cipher: auto
+  -
+    name: V2CROSS.COM-18
+    type: ss
+    server: 51.104.230.86
+    port: 443
+    cipher: chacha20-ietf-poly1305
+    password: W74XFALLLuw6m5IA
+  -
+    name: "|ripaojiedian-1"
+    type: vmess
+    server: v10.hdacd.com
+    port: 30807
+    uuid: cbb3f877-d1fb-344c-87a9-d153bffd5484
+    alterId: 2
+    cipher: auto
+  -
+    name: "3|ripaojiedian-1"
+    type: trojan
+    server: 43.199.66.73
+    port: 52687
+    password: 1774240c00db2b77d5a99f6540c47b69
+    sni: www.nintendogames.net
+  -
+    name: "4|ripaojiedian"
+    type: trojan
+    server: 95.40.58.97
+    port: 50612
+    password: BxceQaOe
+    sni: t.me/ripaojiedian
+    skip-cert-verify: true
+  -
+    name: "5|ripaojiedian"
+    type: trojan
+    server: 3.113.21.102
+    port: 3685
+    password: BxceQaOe
+    sni: t.me/ripaojiedian
+    skip-cert-verify: true
+  -
+    name: "|ripaojiedian-2"
+    type: trojan
+    server: 52.192.67.190
+    port: 1951
+    password: BxceQaOe
+    sni: "t.me"
+    skip-cert-verify: true
+  -
+    name: "2|ripaojiedian-1"
+    type: trojan
+    server: 35.77.96.23
+    port: 4380
+    password: 1774240c00db2b77d5a99f6540c47b69
+    sni: www.nintendogames.net
+  -
+    name: "3|ripaojiedian-2"
+    type: trojan
+    server: 52.192.67.190
+    port: 4380
+    password: 1774240c00db2b77d5a99f6540c47b69
+    sni: www.nintendogames.net
+  -
+    name: "|ripaojiedian-3"
+    type: trojan
+    server: 160.16.124.17
+    port: 32876
+    password: 1774240c00db2b77d5a99f6540c47b69
+    sni: www.nintendogames.net
+  -
+    name: "2|ripaojiedian-2"
+    type: trojan
+    server: 52.192.67.190
+    port: 5594
+    password: 1774240c00db2b77d5a99f6540c47b69
+    sni: www.nintendogames.net
+  -
+    name: "3|ripaojiedian-3"
+    type: trojan
+    server: 43.199.253.236
+    port: 2204
+    password: BxceQaOe
+    sni: "t.me"
+    skip-cert-verify: true
+  -
+    name: "|ripaojiedian-4"
+    type: trojan
+    server: 160.16.124.17
+    port: 4019
+    password: 1774240c00db2b77d5a99f6540c47b69
+    sni: www.nintendogames.net
+  -
+    name: "2|ripaojiedian-3"
+    type: trojan
+    server: 95.40.58.97
+    port: 4019
+    password: 1774240c00db2b77d5a99f6540c47b69
+    sni: www.nintendogames.net
+  -
+    name: "3|ripaojiedian-4"
+    type: trojan
+    server: 54.46.121.89
+    port: 17871
+    password: BxceQaOe
+    sni: t.me/ripaojiedian
+    skip-cert-verify: true
+  -
+    name: CCZZUU.TOP-1
+    type: ss
+    server: 82.38.31.69
+    port: 8080
+    cipher: chacha20-ietf-poly1305
+    password: oZIoA69Q8yhcQV8ka3Pa3A
+  -
+    name: CCZZUU.TOP-2
+    type: vmess
+    server: 107.175.91.118
+    port: 443
+    uuid: 1bb1f95f-7425-4442-93f7-8fc1bd1a2001
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /
+    tls: true
+  -
+    name: CCZZUU.TOP 2-1
+    type: ss
+    server: 82.38.31.89
+    port: 8080
+    cipher: chacha20-ietf-poly1305
+    password: oZIoA69Q8yhcQV8ka3Pa3A
+  -
+    name: Microsoft-2
+    type: ss
+    server: admin.c1.webramz.co
+    port: 443
+    cipher: chacha20-ietf-poly1305
+    password: W74XFALLLuw6m5IA
+  -
+    name: CCZZUU.TOP 3
+    type: vmess
+    server: 82.198.246.37
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: CCZZUU.TOP-3
+    type: ss
+    server: 154.26.132.38
+    port: 16922
+    cipher: chacha20-ietf-poly1305
+    password: 42d2b47181a32de7
+  -
+    name: CCZZUU.TOP 4
+    type: vmess
+    server: 82.198.246.9
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: CDNetworks-2
+    type: ss
+    server: 163.171.206.24
+    port: 44233
+    cipher: chacha20-ietf-poly1305
+    password: 9d97433688e7efd5
+  -
+    name: ss-chengbai02.ascwt179.com-2
+    type: ss
+    server: chengbai02.ascwt179.com
+    port: 13223
+    cipher: aes-128-gcm
+    password: JVrsLLN1tkN8oXZO
+  -
+    name: CCZZUU.TOP-4
+    type: ss
+    server: 119.159.245.24
+    port: 26736
+    cipher: chacha20-ietf-poly1305
+    password: 1d1bc54689ed4b75
+  -
+    name: CCZZUU.TOP 5
+    type: vmess
+    server: 82.198.246.250
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: CCZZUU.TOP-5
+    type: ss
+    server: 138.186.142.80
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: ARgvGZywA+gacgGV26Bvmu05+wZmRW/j+AdU+Z8Bt44=
+  -
+    name: CCZZUU.TOP-6
+    type: ss
+    server: 147.78.1.230
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: ARgvGZywA+gacgGV26Bvmu05+wZmRW/j+AdU+Z8Bt44=
+  -
+    name: CCZZUU.TOP 6
+    type: vmess
+    server: 82.198.246.37
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: CCZZUU.TOP 2-2
+    type: ss
+    server: 119.159.245.24
+    port: 26739
+    cipher: chacha20-ietf-poly1305
+    password: 1d1bc54689ed4b75
+  -
+    name: CCZZUU.TOP-7
+    type: vmess
+    server: 5.188.190.252
+    port: 22324
+    uuid: 04621bae-ab36-11ec-b909-0242ac120002
+    alterId: 1
+    cipher: auto
+  -
+    name: CCZZUU.TOP 7
+    type: vmess
+    server: 82.198.246.250
+    port: 180
+    uuid: d13fc2f5-3e05-4795-81eb-44143a09e552
+    alterId: 0
+    cipher: auto
+  -
+    name: CCZZUU.TOP-8
+    type: ss
+    server: 138.186.143.32
+    port: 990
+    cipher: chacha20-ietf-poly1305
+    password: ARgvGZywA+gacgGV26Bvmu05+wZmRW/j+AdU+Z8Bt44=
+  -
+    name: CCZZUU.TOP 8
+    type: ss
+    server: 82.38.31.210
+    port: 8080
+    cipher: chacha20-ietf-poly1305
+    password: k1dBOmOB4oqi7Ump37a1bQ
+  -
+    name: CCZZUU.TOP-9
+    type: vmess
+    server: 103.181.164.145
+    port: 54022
+    uuid: 418048af-a293-4b99-9b0c-98ca3580dd24
+    alterId: 64
+    cipher: auto
+  -
+    name: CCZZUU.TOP-10
+    type: ss
+    server: 51.104.230.86
+    port: 443
+    cipher: chacha20-ietf-poly1305
+    password: W74XFALLLuw6m5IA
+  -
+    name: _CN_
+    type: ss
+    server: mofacpdd.til69.com
+    port: 41921
+    cipher: chacha20-ietf-poly1305
+    password: 5d68d91f-ccc5-4c00-b1f6-0d764937f4f6
+  -
+    name: _US_
+    type: trojan
+    server: 216.24.57.250
+    port: 443
+    password: 5027e2a4-c4d2-463a-9508-83a2c7d1ad83
+    sni: afrcloud1.mmv.kr
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - DIRECT
+  - name: site-github
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://github.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-npmjs
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://www.npmjs.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-claude
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://claude.ai
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-chatgpt
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://chatgpt.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-oracle
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://www.oracle.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-docker
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://www.docker.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-stackoverflow
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://stackoverflow.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-pypi
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://pypi.org
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-crates
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://crates.io
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-google
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://www.google.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-wikipedia
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://www.wikipedia.org
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-whatsapp
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://www.whatsapp.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-instagram
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://www.instagram.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-canva
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://www.canva.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+  - name: site-twitter-x
+    type: url-test
+    tolerance: 100
+    interval: 60
+    timeout: 2000
+    lazy: false
+    url: https://x.com
+    proxies:
+      - "SS--NF-ChatGPT-144.217.164.2912000"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-547"
+      - "VMESS--NF-ChatGPT-YouTube-t1.620720."
+      - "SS--NF-ChatGPT-TikTok-YouTube-45.15"
+      - "SS--NF-ChatGPT-TikTok-146.19.49.251443"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-15."
+      - "SS--NF-ChatGPT-TikTok-YouTube-71.19.148.143"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-38.92.10.2"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.7"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-51."
+      - "SS--NF-ChatGPT-TikTok-YouTube-92.118.112.10"
+      - "SS--NF-ChatGPT-TikTok-YouTube-15.204.247.49"
+      - "SS--NF-ChatGPT-TikTok-YouTube-pupas-shirtin"
+      - "SS--NF-ChatGPT-TikTok-YouTube-79.127."
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-v2ray.code"
+      - "SS--NF-ChatGPT-TikTok-YouTube-23.95.75.1464"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-198.23.174"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c07.wai"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sup"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-209.126.84"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-sy"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-hgtrojan"
+      - "SS--NF-ChatGPT-TikTok-YouTube-107.175.87.20"
+      - "VMESS--NF-ChatGPT-TikTok-YouTube-cg1c01.wai"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c04.waimaojd.co"
+      - "VMESS--ChatGPT-TikTok-YouTube-cg1c14.waimaojd.co"
+      - "V2CROSS.COM-1"
+      - "V2CROSS.COM-2"
+      - "V2CROSS.COM-3"
+      - "Microsoft-1"
+      - "V2CROSS.COM-4"
+      - "V2CROSS.COM-5"
+      - "V2CROSS.COM-6"
+      - "CDNetworks-1"
+      - "ss-chengbai02.ascwt179.com-1"
+      - "V2CROSS.COM-7"
+      - "V2CROSS.COM-8"
+      - "V2CROSS.COM-9"
+      - "V2CROSS.COM-10"
+      - "V2CROSS.COM-11"
+      - "V2CROSS.COM-12"
+      - "V2CROSS.COM-13"
+      - "V2CROSS.COM-14"
+      - "V2CROSS.COM-15"
+      - "V2CROSS.COM-16"
+      - "V2CROSS.COM-17"
+      - "V2CROSS.COM-18"
+      - "|ripaojiedian-1"
+      - "3|ripaojiedian-1"
+      - "4|ripaojiedian"
+      - "5|ripaojiedian"
+      - "|ripaojiedian-2"
+      - "2|ripaojiedian-1"
+      - "3|ripaojiedian-2"
+      - "|ripaojiedian-3"
+      - "2|ripaojiedian-2"
+      - "3|ripaojiedian-3"
+      - "|ripaojiedian-4"
+      - "2|ripaojiedian-3"
+      - "3|ripaojiedian-4"
+      - "CCZZUU.TOP-1"
+      - "CCZZUU.TOP-2"
+      - "CCZZUU.TOP 2-1"
+      - "Microsoft-2"
+      - "CCZZUU.TOP 3"
+      - "CCZZUU.TOP-3"
+      - "CCZZUU.TOP 4"
+      - "CDNetworks-2"
+      - "ss-chengbai02.ascwt179.com-2"
+      - "CCZZUU.TOP-4"
+      - "CCZZUU.TOP 5"
+      - "CCZZUU.TOP-5"
+      - "CCZZUU.TOP-6"
+      - "CCZZUU.TOP 6"
+      - "CCZZUU.TOP 2-2"
+      - "CCZZUU.TOP-7"
+      - "CCZZUU.TOP 7"
+      - "CCZZUU.TOP-8"
+      - "CCZZUU.TOP 8"
+      - "CCZZUU.TOP-9"
+      - "CCZZUU.TOP-10"
+      - "_CN_"
+      - "_US_"
+
+rules:
+  - RULE-SET,custom-direct,DIRECT
+  - RULE-SET,custom-block,REJECT
+  - DOMAIN-SUFFIX,raw.githubusercontent.com,DIRECT
+  - DOMAIN-SUFFIX,codeload.github.com,DIRECT
+  - DOMAIN-SUFFIX,api.github.com,DIRECT
+  - DOMAIN-SUFFIX,uploads.github.com,DIRECT
+  - DOMAIN-SUFFIX,graphql.github.com,DIRECT
+  - DOMAIN-SUFFIX,gist.github.com,DIRECT
+  - DOMAIN-SUFFIX,pages.github.com,DIRECT
+  - DOMAIN-SUFFIX,vscode-auth.github.com,DIRECT
+  - DOMAIN-SUFFIX,education.github.com,DIRECT
+  - DOMAIN-SUFFIX,auth.github.com,DIRECT
+  - DOMAIN-SUFFIX,live.github.com,DIRECT
+  - DOMAIN-SUFFIX,copilot.github.com,DIRECT
+  - DOMAIN-SUFFIX,github.com,DIRECT
+  - DOMAIN-SUFFIX,github.io,DIRECT
+  - DOMAIN-SUFFIX,githubusercontent.com,DIRECT
+  - DOMAIN-SUFFIX,githubassets.com,DIRECT
+  - DOMAIN-SUFFIX,ssh.github.com,DIRECT
+  - DOMAIN-SUFFIX,lfs.github.com,DIRECT
+  - RULE-SET,site-github,site-github
+  - RULE-SET,site-npmjs,site-npmjs
+  - RULE-SET,site-claude,site-claude
+  - RULE-SET,site-chatgpt,site-chatgpt
+  - RULE-SET,site-oracle,site-oracle
+  - RULE-SET,site-docker,site-docker
+  - RULE-SET,site-stackoverflow,site-stackoverflow
+  - RULE-SET,site-pypi,site-pypi
+  - RULE-SET,site-crates,site-crates
+  - RULE-SET,site-google,site-google
+  - RULE-SET,site-wikipedia,site-wikipedia
+  - RULE-SET,site-whatsapp,site-whatsapp
+  - RULE-SET,site-instagram,site-instagram
+  - RULE-SET,site-canva,site-canva
+  - RULE-SET,site-twitter-x,site-twitter-x
+  - GEOIP,CN,DIRECT
+  - MATCH,DIRECT
+

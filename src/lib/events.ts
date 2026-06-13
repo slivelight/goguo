@@ -9,6 +9,8 @@ import type {
   ServiceStoppedPayload,
   ServiceStartedPayload,
   AutoRecoveryTriggeredPayload,
+  ProxyRecoveringPayload,
+  ProxyRecoveredPayload,
 } from './types';
 
 export type TauriEvent =
@@ -20,7 +22,9 @@ export type TauriEvent =
   | 'baseline:deviation-detected'
   | 'service:started'
   | 'service:stopped'
-  | 'proxy-guard:recovery-triggered';
+  | 'proxy-guard:recovery-triggered'
+  | 'proxy:recovering'
+  | 'proxy:recovered';
 
 export function subscribeRecoveryStarted(
   callback: (payload: RecoveryStartedPayload) => void
@@ -74,4 +78,16 @@ export function subscribeAutoRecoveryTriggered(
   callback: (payload: AutoRecoveryTriggeredPayload) => void
 ): Promise<UnlistenFn> {
   return listen('proxy-guard:recovery-triggered', (event) => callback(event.payload as AutoRecoveryTriggeredPayload));
+}
+
+export function subscribeProxyRecovering(
+  callback: (payload: ProxyRecoveringPayload) => void
+): Promise<UnlistenFn> {
+  return listen('proxy:recovering', (event) => callback(event.payload as ProxyRecoveringPayload));
+}
+
+export function subscribeProxyRecovered(
+  callback: (payload: ProxyRecoveredPayload) => void
+): Promise<UnlistenFn> {
+  return listen('proxy:recovered', (event) => callback(event.payload as ProxyRecoveredPayload));
 }

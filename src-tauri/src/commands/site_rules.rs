@@ -101,10 +101,44 @@ pub struct SiteRulesState {
 
 impl SiteRulesState {
     #[must_use]
-    pub fn new(install_root: &Path) -> Self {
+    pub fn new(
+        install_root: &Path,
+        mihomo_manager: Arc<Mutex<crate::managers::mihomo_manager::MihomoManager>>,
+    ) -> Self {
         let data_dir = install_root.join("data");
         let probe_client = Arc::new(MockProbeClient::new());
-        let engine = SiteRuleEngine::new(&data_dir, probe_client, None, None);
+
+        // Create RulesetWriter pointing to mihomo config dir
+        let config_dir = data_dir.join("mihomo");
+        let ruleset_writer =
+            Some(crate::services::ruleset_writer::RulesetWriter::new(&config_dir));
+
+        // Create MihomoManagerReloader wrapper
+        let mihomo_reloader: Option<Arc<dyn crate::managers::mihomo_manager::MihomoReloader>> =
+            Some(Arc::new(MihomoManagerReloader {
+                manager: mihomo_manager,
+                config_path: config_dir.join("config.yaml"),
+            }));
+
+        // Create MihomoConfigManager for per-site proxy groups
+        let config_manager =
+            crate::services::mihomo_config_manager::MihomoConfigManager::open(
+                config_dir.join("config.yaml"),
+            )
+            .map_err(|e| {
+                eprintln!("Warning: MihomoConfigManager open failed: {e}");
+                e
+            })
+            .ok();
+
+        let engine = SiteRuleEngine::new_with_config_manager(
+            &data_dir,
+            probe_client,
+            mihomo_reloader,
+            None,
+            ruleset_writer,
+            config_manager,
+        );
         let node_pool = NodePool::new(NodePoolConfig::default());
         let subscription_parser = SubscriptionParser::new(
             data_dir.join("config").join("subscription-sources.json"),
@@ -119,6 +153,19 @@ impl SiteRulesState {
             subscription_parser: Mutex::new(subscription_parser),
             site_definition_store,
         }
+    }
+}
+
+/// Wrapper that adapts `Arc<Mutex<MihomoManager>>` to the `MihomoReloader` trait.
+struct MihomoManagerReloader {
+    manager: Arc<Mutex<crate::managers::mihomo_manager::MihomoManager>>,
+    config_path: std::path::PathBuf,
+}
+
+impl crate::managers::mihomo_manager::MihomoReloader for MihomoManagerReloader {
+    fn reload_config(&self, _config_path: &str) -> Result<(), crate::managers::mihomo_manager::MihomoError> {
+        let mgr = self.manager.lock().expect("lock");
+        mgr.reload_config(&self.config_path.to_string_lossy())
     }
 }
 
@@ -232,34 +279,10 @@ pub fn preview_rules(state: tauri::State<'_, SiteRulesState>) -> Vec<String> {
 }
 
 #[tauri::command]
-#[must_use]
 #[allow(clippy::needless_pass_by_value)]
-pub fn apply_rules(
-    confirm: bool,
-    state: tauri::State<'_, SiteRulesState>,
-) -> AddSiteResponse {
-    if !confirm {
-        return AddSiteResponse {
-            success: false,
-            site: None,
-            rules_generated: 0,
-            verification_passed: false,
-            error: Some("Requires confirmation".to_string()),
-            five_element_prompt: None,
-        };
-    }
-    
+pub fn refresh_ip_cache(state: tauri::State<'_, SiteRulesState>) {
     let mut engine = state.engine.lock().expect("lock");
-    let reloaded = engine.reload_rules();
-    
-    AddSiteResponse {
-        success: reloaded,
-        site: None,
-        rules_generated: engine.total_domain_count(),
-        verification_passed: reloaded,
-        error: if reloaded { None } else { Some("Reload failed".to_string()) },
-        five_element_prompt: None,
-    }
+    engine.refresh_ip_cache();
 }
 
 #[tauri::command]
@@ -426,7 +449,7 @@ fn create_custom_site(
     domains: Vec<String>,
     state: &SiteRulesState,
 ) -> CreateSiteResponse {
-    use crate::models::site::{DomainCategory, HealthCheckConfig, SiteDefinition};
+    use crate::models::site::{AccessStrategy, DomainCategory, HealthCheckConfig, SiteDefinition};
 
     // Generate id from name: lowercase, replace spaces with hyphens
     let site_id = name.to_lowercase().replace(' ', "-");
@@ -459,6 +482,7 @@ fn create_custom_site(
             timeout_secs: 5,
             failure_threshold: 3,
         }),
+        access_strategy: AccessStrategy::default(),
     };
 
     // Save custom definition to disk
@@ -534,17 +558,9 @@ fn update_custom_site_domains(
 ) -> UpdateSiteDomainsResponse {
     use crate::models::site::DomainCategory;
 
-    // Reject built-in sites
-    if state.site_definition_store.built_in_ids().contains(&site_id.to_string()) {
-        return UpdateSiteDomainsResponse {
-            success: false,
-            site: None,
-            rules_generated: 0,
-            error: Some("Cannot modify built-in site".to_string()),
-        };
-    }
-
-    // Load existing custom site
+    // Load existing definition (builtin or custom override).
+    // After template application, sites are independent instances;
+    // editing a builtin site creates a custom override (lazy copy-on-write).
     let Some(mut site) = state.site_definition_store.get(site_id) else {
         return UpdateSiteDomainsResponse {
             success: false,
@@ -625,6 +641,12 @@ pub fn tauri_update_site_domains(
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    /// Helper to create a shared MihomoManager for tests.
+    fn test_mihomo_manager(dir: &std::path::Path) -> Arc<Mutex<crate::managers::mihomo_manager::MihomoManager>> {
+        let config = crate::models::config::AppConfig::default_for(dir.to_path_buf());
+        Arc::new(Mutex::new(crate::managers::mihomo_manager::MihomoManager::new(config.mihomo)))
+    }
 
     #[test]
     fn site_info_from_definition() {
@@ -742,7 +764,7 @@ mod tests {
     #[test]
     fn site_rules_state_new() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
         assert_eq!(state.engine.lock().unwrap().active_sites_count(), 0);
         assert_eq!(state.node_pool.lock().unwrap().node_count(), 0);
     }
@@ -750,7 +772,7 @@ mod tests {
     #[test]
     fn list_site_definitions_returns_all_built_in() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
         let definitions: Vec<SiteDefinitionInfo> = state
             .site_definition_store
             .list_all()
@@ -778,7 +800,7 @@ mod tests {
     #[test]
     fn lookup_site_by_exact_domain() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
         let domain = crate::services::url_parser::extract_domain("github.com").expect("domain");
         let site = state.site_definition_store.lookup_by_domain(&domain).expect("site");
         let info = SiteDefinitionInfo::from(site);
@@ -789,7 +811,7 @@ mod tests {
     #[test]
     fn lookup_site_by_url() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
         let domain = crate::services::url_parser::extract_domain("https://www.google.com/search?q=test").expect("domain");
         let site = state.site_definition_store.lookup_by_domain(&domain).expect("site");
         assert_eq!(site.id, "google");
@@ -798,7 +820,7 @@ mod tests {
     #[test]
     fn lookup_site_returns_none_for_unknown() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
         let domain = crate::services::url_parser::extract_domain("https://unknown-site-xyz.com/page").expect("domain");
         let result = state.site_definition_store.lookup_by_domain(&domain);
         assert!(result.is_none());
@@ -807,7 +829,7 @@ mod tests {
     #[test]
     fn create_custom_site_saves_and_adds() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
 
         let domains = vec![
             "custom.example.com".to_string(),
@@ -832,7 +854,7 @@ mod tests {
     #[test]
     fn create_custom_site_rejects_builtin_id() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
 
         let result = create_custom_site("github", "Fake", vec!["evil.com".to_string()], &state);
         assert!(!result.success);
@@ -841,7 +863,7 @@ mod tests {
     #[test]
     fn update_custom_site_domains_adds_and_removes() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
 
         // Create a custom site first
         let created = create_custom_site(
@@ -867,17 +889,115 @@ mod tests {
     }
 
     #[test]
-    fn update_custom_site_rejects_builtin() {
+    fn update_builtin_site_creates_custom_override() {
         let dir = tempdir().expect("tempdir");
-        let state = SiteRulesState::new(dir.path());
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
 
+        // Editing a builtin site should succeed by creating a custom override
         let result = update_custom_site_domains(
             "github",
             &vec!["evil.com".to_string()],
             &vec![],
             &state,
         );
-        assert!(!result.success);
-        assert!(result.error.is_some());
+        assert!(result.success);
+        let site = result.site.expect("site");
+        let all: Vec<String> = site.domains.values().flatten().cloned().collect();
+        assert!(all.contains(&"evil.com".to_string()));
+        // Original builtin domains should also be present
+        assert!(all.contains(&"github.com".to_string()));
+    }
+
+    /// Minimal valid mihomo config.yaml for integration tests.
+    fn minimal_mihomo_config() -> &'static str {
+        r#"tcp-concurrent: true
+mixed-port: 7890
+mode: rule
+dns:
+  enable: true
+  nameserver:
+    - 223.5.5.5
+rule-providers:
+  custom-direct:
+    type: file
+    behavior: classical
+    path: ./ruleset/custom-direct.yaml
+proxies:
+  - name: SS-Node-A
+    type: ss
+    server: 1.2.3.4
+    port: 443
+  - name: "VMESS-Node-B"
+    type: vmess
+    server: 5.6.7.8
+    port: 8080
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - DIRECT
+rules:
+  - MATCH,DIRECT
+"#
+    }
+
+    /// Integration test: verify the full pipeline produces correct per-site config.
+    ///
+    /// This test catches the class of bug where `MihomoConfigManager::open()` is
+    /// never called (or the old `new()` is used without `parse()`), because it
+    /// asserts the actual config.yaml content after template application.
+    #[test]
+    fn apply_template_produces_per_site_proxy_groups() {
+        let dir = tempdir().expect("tempdir");
+        let config_dir = dir.path().join("data").join("mihomo");
+        std::fs::create_dir_all(&config_dir).unwrap();
+        std::fs::write(config_dir.join("config.yaml"), minimal_mihomo_config()).unwrap();
+
+        let state = SiteRulesState::new(dir.path(), test_mihomo_manager(dir.path()));
+
+        // Apply developer template (includes github)
+        let template_ids =
+            crate::services::site_definition_store::SiteDefinitionStore::developer_template_ids();
+        let results = {
+            let mut engine = state.engine.lock().expect("lock");
+            engine.apply_template(&template_ids)
+        };
+
+        // At least one site should succeed
+        assert!(
+            results.iter().any(|r| matches!(r, crate::engines::site_rule_engine::AddSiteResult::Success { .. })),
+            "at least one site should be added successfully"
+        );
+
+        // Verify config.yaml was regenerated with per-site proxy groups
+        let config_content = std::fs::read_to_string(config_dir.join("config.yaml"))
+            .expect("config.yaml should exist after template application");
+
+        // Static sections preserved
+        assert!(config_content.contains("tcp-concurrent: true"), "general settings should be preserved");
+        assert!(config_content.contains("mixed-port: 7890"), "mixed-port should be preserved");
+        assert!(config_content.contains("dns:"), "DNS section should be preserved");
+
+        // Proxy nodes preserved verbatim
+        assert!(config_content.contains("server: 1.2.3.4"), "proxy node SS-Node-A should be preserved");
+        assert!(config_content.contains("server: 5.6.7.8"), "proxy node VMESS-Node-B should be preserved");
+
+        // Per-site proxy groups generated
+        assert!(config_content.contains("name: site-github"), "site-github proxy group should exist");
+        assert!(config_content.contains("type: url-test"), "per-site group should be url-test");
+        assert!(config_content.contains("url: https://github.com"), "health check URL should be site-specific");
+
+        // Per-site rules generated
+        assert!(config_content.contains("RULE-SET,site-github,site-github"), "site-github rule should route to site-github group");
+
+        // Proxy nodes listed in site groups
+        assert!(config_content.contains("\"SS-Node-A\""), "proxy nodes should be in site groups");
+        assert!(config_content.contains("\"VMESS-Node-B\""), "proxy nodes should be in site groups");
+
+        // Per-site ruleset file created
+        assert!(
+            config_dir.join("ruleset").join("site-github.yaml").exists(),
+            "site-github.yaml ruleset file should be created"
+        );
     }
 }

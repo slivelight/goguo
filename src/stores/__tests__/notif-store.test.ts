@@ -7,6 +7,8 @@ vi.mock('../../lib/events', () => ({
   subscribeRecoveryCompleted: vi.fn((_cb) => Promise.resolve(() => {})),
   subscribeRecoveryFailed: vi.fn((_cb) => Promise.resolve(() => {})),
   subscribeRecoveryItemCompleted: vi.fn((_cb) => Promise.resolve(() => {})),
+  subscribeProxyRecovering: vi.fn((_cb) => Promise.resolve(() => {})),
+  subscribeProxyRecovered: vi.fn((_cb) => Promise.resolve(() => {})),
 }));
 
 describe('notif-store', () => {

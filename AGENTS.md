@@ -45,7 +45,7 @@
 
 - 代码风格：`docs/principles/coding-principles.md`
 - 语言版本与依赖管理：`docs/principles/coding-principles.md`
-- 测试纪律：fresh evidence / RED-GREEN / Two Hats（见 `docs/principles/architectural-health-during-tdd.md`）
+- 测试纪律：fresh evidence / RED-GREEN / Two Hats（见 `docs/principles/architectural-health-during-tdd.md`）；三层测试方法论——FR 验收测试 / 契约测试 / 管道集成测试（见 `docs/principles/testing-principles.md`）
 - 架构原则锚点：☐ `docs/principles/architecture-principles.md`（未启用时由 soul + sdd-artifact-layout 兜底）
 - 设计原则锚点路径（hf-design 读取）：`docs/principles/`
 

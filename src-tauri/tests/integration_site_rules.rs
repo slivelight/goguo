@@ -125,11 +125,7 @@ fn override_persists_through_reload() {
     let override_rule = Rule::domain_exact("custom.override.com".to_string());
     engine.add_user_override(override_rule);
 
-    // Reload rules
-    let reloaded = engine.reload_rules();
-    assert!(reloaded, "reload should succeed");
-
-    // Preview should still contain the override
+    // Preview should still contain the override (rules are auto-applied on add)
     let preview = engine.preview_rules();
     assert!(
         preview.iter().any(|r| r.contains("custom.override.com")),

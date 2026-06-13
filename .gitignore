@@ -237,5 +237,19 @@ target/doc/
 *.rar
 *.7z
 
-# 开发模式 install_root
-release/
+# 开发模式 install_root — 大部分为运行时产物，仅跟踪用户核心配置
+release/*
+!release/data/
+release/data/*
+!release/data/mihomo/
+release/data/mihomo/*
+!release/data/mihomo/config.yaml
+!release/data/mihomo/geoip.metadb
+!release/data/mihomo/geosite.dat
+!release/data/mihomo/ruleset/
+release/data/mihomo/ruleset/*
+!release/data/mihomo/ruleset/custom-direct.yaml
+!release/data/mihomo/ruleset/custom-block.yaml
+!release/data/config/
+release/data/config/*
+!release/data/config/settings.json

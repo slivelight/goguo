@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRuleStore } from '../stores/rule-store';
 import { useNotifStore } from '../stores/notif-store';
 import CodeBlock from '../components/shared/CodeBlock';
-import ConfirmDialog from '../components/shared/ConfirmDialog';
 
 /** Extract site key from a domain like "github.com" → "github", "npmjs.org" → "npm" */
 function extractSiteKey(domain: string): string {
@@ -55,10 +54,9 @@ function groupRulesBySite(previewData: string[]): RuleGroup[] {
 }
 
 function RulesPage() {
-  const [showApplyDialog, setShowApplyDialog] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  const { rules, previewData, preview, apply, isLoading, failurePrompt } = useRuleStore();
+  const { rules, previewData, preview, isLoading } = useRuleStore();
   const { addNotification } = useNotifStore();
 
   const ruleGroups = useMemo(() => groupRulesBySite(previewData), [previewData]);
@@ -84,18 +82,10 @@ function RulesPage() {
     addNotification('info', '规则预览', `已预览 ${previewData.length} 条规则`);
   };
 
-  const handleApplyClick = async () => {
-    await apply(true);
-    if (rules.length > 0) {
-      addNotification('success', '规则应用成功', `已应用 ${rules.length} 条规则`);
-    }
-    setShowApplyDialog(false);
-  };
-
   return (
     <div>
       <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '24px' }}>规则预览</h1>
-      
+
       <div className="card">
         <div className="card-header">预览规则</div>
         <p style={{ color: 'var(--color-text-secondary)', marginBottom: '12px' }}>
@@ -162,9 +152,12 @@ function RulesPage() {
       </div>
 
       <div className="card">
-        <div className="card-header">已应用规则</div>
+        <div className="card-header">当前生效规则</div>
+        <p style={{ color: 'var(--color-text-secondary)', marginBottom: '8px', fontSize: '13px' }}>
+          规则在添加/删除站点时自动生效，无需手动应用
+        </p>
         <p style={{ color: 'var(--color-text-secondary)', marginBottom: '12px' }}>
-          已应用: {rules.length} 条
+          已生效: {rules.length} 条
         </p>
         {rules.length > 0 ? (
           <CodeBlock
@@ -173,74 +166,19 @@ function RulesPage() {
             maxHeight="200px"
           />
         ) : (
-          <p style={{ color: 'var(--color-text-secondary)' }}>尚未应用任何规则</p>
+          <p style={{ color: 'var(--color-text-secondary)' }}>尚未生效任何规则</p>
         )}
       </div>
 
-      {failurePrompt && (
-        <div className="card" style={{ borderColor: 'var(--color-error, #e74c3c)' }}>
-          <div className="card-header" style={{ color: 'var(--color-error, #e74c3c)' }}>
-            规则应用失败详情
-          </div>
-          <p style={{ marginBottom: '8px' }}>
-            <strong>原因：</strong>{failurePrompt.reason}
-          </p>
-          {failurePrompt.attempted_actions.length > 0 && (
-            <div style={{ marginBottom: '8px' }}>
-              <strong>已尝试的操作：</strong>
-              <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
-                {failurePrompt.attempted_actions.map((action, i) => (
-                  <li key={i}>{action}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <p style={{ marginBottom: '8px', padding: '8px', background: 'var(--color-bg-secondary, #f5f5f5)', borderRadius: '6px' }}>
-            <strong>建议操作：</strong>{failurePrompt.suggested_action}
-          </p>
-          {failurePrompt.needs_manual_handling && (
-            <span style={{
-              display: 'inline-block',
-              padding: '4px 10px',
-              background: 'var(--color-error, #e74c3c)',
-              color: '#fff',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontWeight: '600',
-            }}>
-              需要人工处理
-            </span>
-          )}
-        </div>
-      )}
-
       <div style={{ display: 'flex', gap: '8px' }}>
-        <button 
-          className="btn btn-secondary" 
+        <button
+          className="btn btn-secondary"
           onClick={handlePreviewClick}
           disabled={isLoading}
         >
           {isLoading ? '预览中...' : '刷新预览'}
         </button>
-        {previewData.length > 0 && (
-          <button 
-            className="btn btn-primary" 
-            onClick={() => setShowApplyDialog(true)}
-            disabled={isLoading}
-          >
-            {isLoading ? '应用中...' : '应用规则'}
-          </button>
-        )}
       </div>
-
-      <ConfirmDialog
-        isOpen={showApplyDialog}
-        title="应用规则"
-        message={`将应用 ${previewData.length} 条代理规则，确认执行？`}
-        confirmText="确认应用"
-        onConfirm={handleApplyClick}
-        onCancel={() => setShowApplyDialog(false)}
-      />
     </div>
   );
 }

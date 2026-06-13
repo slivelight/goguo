@@ -332,7 +332,7 @@ fn proxy_guard_auto_recovery_flow() {
     // Attempts 1 and 2 succeed in incrementing count but start fails → Restarted.
     // Attempt 3: count=3, start fails, count >= max → RecoveryTriggered.
     for i in 1..=2 {
-        let action = guard.check_and_recover(&mut mihomo);
+        let action = guard.check_and_recover(false, &mut mihomo);
         assert!(
             matches!(action, GuardAction::Restarted { attempt } if attempt == i),
             "Expected Restarted with attempt {i}, got {action:?}"
@@ -340,11 +340,11 @@ fn proxy_guard_auto_recovery_flow() {
     }
 
     // 3rd attempt: start fails, restart_count == max → RecoveryTriggered.
-    let action = guard.check_and_recover(&mut mihomo);
+    let action = guard.check_and_recover(false, &mut mihomo);
     assert_eq!(action, GuardAction::RecoveryTriggered);
 
     // After max attempts, next check still triggers recovery.
-    let action = guard.check_and_recover(&mut mihomo);
+    let action = guard.check_and_recover(false, &mut mihomo);
     assert_eq!(action, GuardAction::RecoveryTriggered);
 
     // Verify command-layer service status.
@@ -365,8 +365,8 @@ fn proxy_guard_resets_on_healthy() {
     });
 
     // Simulate some restart attempts.
-    let _ = guard.check_and_recover(&mut mihomo);
-    let _ = guard.check_and_recover(&mut mihomo);
+    let _ = guard.check_and_recover(false, &mut mihomo);
+    let _ = guard.check_and_recover(false, &mut mihomo);
     assert_eq!(guard.restart_count(), 2);
 
     // Reset (simulates healthy period).
@@ -374,7 +374,7 @@ fn proxy_guard_resets_on_healthy() {
     assert_eq!(guard.restart_count(), 0);
 
     // Can restart again.
-    let action = guard.check_and_recover(&mut mihomo);
+    let action = guard.check_and_recover(false, &mut mihomo);
     assert!(matches!(action, GuardAction::Restarted { attempt: 1 }));
 }
 

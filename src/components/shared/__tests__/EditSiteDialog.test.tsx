@@ -18,6 +18,16 @@ const mockCustomSite: SiteInfo = {
   },
 };
 
+const mockTemplateAppliedSite: SiteInfo = {
+  id: 'github',
+  name: 'GitHub',
+  domain_count: 47,
+  domains: {
+    core: ['github.com', 'github.io'],
+    api: ['api.github.com'],
+  },
+};
+
 describe('EditSiteDialog', () => {
   const mockOnSaved = vi.fn();
   const mockOnCancel = vi.fn();
@@ -28,20 +38,20 @@ describe('EditSiteDialog', () => {
 
   it('does not render when isOpen=false', () => {
     render(<EditSiteDialog isOpen={false} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
-    expect(screen.queryByText('编辑站点')).toBeNull();
+    expect(screen.queryByText(/编辑站点/)).toBeNull();
   });
 
   it('renders site name and domain list when open', () => {
     render(<EditSiteDialog isOpen={true} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
-    expect(screen.getByText(/My Site/)).toBeDefined();
+    expect(screen.getByText(/编辑站点.*My Site/)).toBeDefined();
     expect(screen.getByText('a.example.com')).toBeDefined();
     expect(screen.getByText('b.example.com')).toBeDefined();
   });
 
-  it('shows remove button for each domain', () => {
+  it('shows delete button for each domain', () => {
     render(<EditSiteDialog isOpen={true} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
-    const removeButtons = screen.getAllByText('移除');
-    expect(removeButtons.length).toBe(3);
+    const deleteButtons = screen.getAllByText('删除');
+    expect(deleteButtons.length).toBe(3);
   });
 
   it('shows URL input for adding domains', () => {
@@ -49,41 +59,52 @@ describe('EditSiteDialog', () => {
     expect(screen.getByPlaceholderText(/输入网址添加域名/)).toBeDefined();
   });
 
-  it('adds domain from URL input', () => {
+  it('toggles domain delete/restore on click', () => {
+    render(<EditSiteDialog isOpen={true} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
+    const deleteButtons = screen.getAllByText('删除');
+    // Click delete on a.example.com → should show "恢复"
+    fireEvent.click(deleteButtons[0]);
+    expect(screen.getByText('恢复')).toBeDefined();
+    // Domain text should still be visible (not removed from list)
+    expect(screen.getByText('a.example.com')).toBeDefined();
+    // Click restore → back to "删除"
+    fireEvent.click(screen.getByText('恢复'));
+    expect(screen.getAllByText('删除').length).toBe(3);
+  });
+
+  it('adds domain from URL input with underline style', () => {
     render(<EditSiteDialog isOpen={true} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
     const input = screen.getByPlaceholderText(/输入网址添加域名/);
     fireEvent.change(input, { target: { value: 'https://d.example.com/path' } });
     fireEvent.click(screen.getByText('添加域名'));
-    expect(screen.getByText('d.example.com')).toBeDefined();
+    expect(screen.getByText(/d.example.com/)).toBeDefined();
+    expect(screen.getByText('(新增)')).toBeDefined();
   });
 
-  it('removes domain when remove clicked', () => {
-    render(<EditSiteDialog isOpen={true} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
-    const removeButtons = screen.getAllByText('移除');
-    fireEvent.click(removeButtons[0]); // Remove a.example.com
-    expect(screen.queryByText('a.example.com')).toBeNull();
-    expect(screen.getByText('b.example.com')).toBeDefined();
-  });
-
-  it('calls updateSiteDomains on save', async () => {
+  it('calls updateSiteDomains on confirm with correct add/remove lists', async () => {
     vi.mocked(updateSiteDomains).mockResolvedValue({
       success: true,
-      site: { id: 'my-site', name: 'My Site', domain_count: 2, domains: {} },
-      rules_generated: 2,
+      site: { id: 'my-site', name: 'My Site', domain_count: 3, domains: {} },
+      rules_generated: 3,
     });
 
     render(<EditSiteDialog isOpen={true} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
 
-    // Remove one domain
-    const removeButtons = screen.getAllByText('移除');
-    fireEvent.click(removeButtons[1]); // Remove b.example.com
+    // Mark b.example.com for deletion
+    const deleteButtons = screen.getAllByText('删除');
+    fireEvent.click(deleteButtons[1]); // b.example.com
 
-    fireEvent.click(screen.getByText('保存'));
+    // Add a new domain
+    const input = screen.getByPlaceholderText(/输入网址添加域名/);
+    fireEvent.change(input, { target: { value: 'https://d.example.com' } });
+    fireEvent.click(screen.getByText('添加域名'));
+
+    fireEvent.click(screen.getByText('确定'));
 
     await waitFor(() => {
       expect(updateSiteDomains).toHaveBeenCalledWith(
         'my-site',
-        [],
+        ['d.example.com'],
         ['b.example.com'],
       );
     });
@@ -103,7 +124,7 @@ describe('EditSiteDialog', () => {
     fireEvent.change(input, { target: { value: 'https://new.example.com' } });
     fireEvent.click(screen.getByText('添加域名'));
 
-    fireEvent.click(screen.getByText('保存'));
+    fireEvent.click(screen.getByText('确定'));
 
     await waitFor(() => {
       expect(mockOnSaved).toHaveBeenCalled();
@@ -114,5 +135,25 @@ describe('EditSiteDialog', () => {
     render(<EditSiteDialog isOpen={true} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
     fireEvent.click(screen.getByText('取消'));
     expect(mockOnCancel).toHaveBeenCalledOnce();
+  });
+
+  it('allows editing template-applied sites (e.g. github)', () => {
+    render(<EditSiteDialog isOpen={true} site={mockTemplateAppliedSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
+    // Title should say "编辑站点"
+    expect(screen.getByText(/编辑站点.*GitHub/)).toBeDefined();
+    // Domains should be listed
+    expect(screen.getByText('github.com')).toBeDefined();
+    expect(screen.getByText('api.github.com')).toBeDefined();
+    // Delete buttons visible for all domains
+    expect(screen.getAllByText('删除').length).toBe(3);
+    // Input and confirm button visible
+    expect(screen.getByPlaceholderText(/输入网址添加域名/)).toBeDefined();
+    expect(screen.getByText('确定')).toBeDefined();
+  });
+
+  it('disables confirm when no changes made', () => {
+    render(<EditSiteDialog isOpen={true} site={mockCustomSite} onSaved={mockOnSaved} onCancel={mockOnCancel} />);
+    const confirmButton = screen.getByText('确定') as HTMLButtonElement;
+    expect(confirmButton.disabled).toBe(true);
   });
 });

@@ -25,12 +25,23 @@ serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
+native-tls = "0.2"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+glib = "0.18"
+gio = "0.18"
+gdk = "0.18"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
 
 [dev-dependencies]
 tempfile = "3"
+
+[[test]]
+name = "fr_acceptance"
+path = "tests/fr_acceptance/mod.rs"
 
 [lints]
 workspace = true

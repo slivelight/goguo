@@ -66,16 +66,62 @@ fn get_install_root() -> std::path::PathBuf {
 /// Panics if Tauri fails to initialize or encounters a runtime error.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // F111: On WSL2, force X11 backend.
+    // WSLg's Weston compositor does not resume input event delivery to
+    // native Wayland clients after VM pause/resume (Recv-Q=0 confirmed).
+    // XWayland (used by xeyes etc.) is unaffected.
+    // Native Linux keeps default backend; SleepWakeService handles Wayland freeze.
+    // This must be set before GDK initialization.
+    #[cfg(target_os = "linux")]
+    {
+        let is_wsl = std::fs::read_to_string("/proc/version")
+            .is_ok_and(|content| services::wsl_detector::parse_proc_version(&content));
+        if is_wsl {
+            std::env::set_var("GDK_BACKEND", "x11");
+            eprintln!("[GoGuo] WSL detected, GDK_BACKEND forced to x11");
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // Verify GDK_BACKEND was set before GTK init
+            let gdk_backend = std::env::var("GDK_BACKEND").unwrap_or_else(|_| "not set".to_string());
+            eprintln!("[GoGuo] GDK_BACKEND = {gdk_backend}");
+
             let install_root = get_install_root();
             let data_dir = install_root.join("data");
             eprintln!("[GoGuo] install_root = {}", install_root.display());
             eprintln!("[GoGuo] data_dir = {}", data_dir.display());
             std::fs::create_dir_all(&data_dir).ok();
-            app.manage(AppState::new(&install_root).expect("app state"));
-            app.manage(SiteRulesState::new(&install_root));
+            // Create shared MihomoManager for AppState and SiteRulesState
+            let app_config = crate::models::config::AppConfig::default_for(install_root.clone());
+            let mihomo_manager = std::sync::Arc::new(std::sync::Mutex::new(
+                crate::managers::mihomo_manager::MihomoManager::new(app_config.mihomo),
+            ));
+
+            app.manage(AppState::new(&install_root, mihomo_manager.clone()).expect("app state"));
+            app.manage(SiteRulesState::new(&install_root, mihomo_manager));
+
+            // F111-T6: Start sleep/wake service on native Linux + Wayland.
+            // WSL2 uses X11 backend which doesn't need this workaround.
+            #[cfg(target_os = "linux")]
+            {
+                let is_x11_forced =
+                    std::env::var("GDK_BACKEND").unwrap_or_default() == "x11";
+                if !is_x11_forced {
+                    match crate::services::sleep_wake::start() {
+                        Ok(_svc) => {
+                            eprintln!(
+                                "[GoGuo] Sleep/Wake service started (native Linux + Wayland)"
+                            );
+                        }
+                        Err(e) => eprintln!("[GoGuo] Sleep/Wake service failed: {e}"),
+                    }
+                } else {
+                    eprintln!("[GoGuo] Sleep/Wake service skipped (X11 mode)");
+                }
+            }
 
             // F105: spawn ProxyGuard background monitoring thread
             let app_handle = app.handle().clone();
@@ -108,7 +154,7 @@ pub fn run() {
             commands::site_rules::remove_target_site,
             commands::site_rules::apply_preset_template,
             commands::site_rules::preview_rules,
-            commands::site_rules::apply_rules,
+            commands::site_rules::refresh_ip_cache,
             commands::site_rules::get_site_reachability,
             commands::site_rules::get_diagnosis,
             commands::site_rules::get_node_pool_status,

@@ -257,6 +257,32 @@ impl MihomoManager {
         }
     }
 
+    /// Check if this manager has adopted or spawned a mihomo process.
+    ///
+    /// Returns `true` if either an externally managed process was adopted
+    /// or a child process was spawned and is tracked.
+    #[must_use]
+    pub fn is_adopted(&self) -> bool {
+        self.externally_managed || self.process.is_some()
+    }
+
+    /// Check API health using a TCP connect with reduced timeout (500ms).
+    /// Intended for use outside locks where a quick port check suffices.
+    #[must_use]
+    /// Intended for use outside locks where a quick port check suffices.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the API address cannot be parsed (should never happen with valid config).
+    pub fn check_api_port(&self) -> bool {
+        let addr = self.config.api_address.clone();
+        std::net::TcpStream::connect_timeout(
+            &addr.parse().unwrap_or_else(|_| "127.0.0.1:9090".parse().unwrap()),
+            Duration::from_millis(500),
+        )
+        .is_ok()
+    }
+
     /// Perform a health check against the mihomo API.
     #[must_use]
     pub fn health_check(&self) -> bool {
@@ -282,23 +308,24 @@ impl MihomoManager {
     /// Returns `MihomoError::NotRunning` if the process is not alive,
     /// or `MihomoError::Io` if the HTTP request fails.
     pub fn reload_config(&self, config_path: &str) -> Result<(), MihomoError> {
-        use std::io::Write;
+        use std::io::{Read, Write};
 
-        let body = serde_json::json!({"path": config_path});
+        let body = serde_json::json!({"path": config_path}).to_string();
         let client = std::net::TcpStream::connect(&self.config.api_address)
             .map_err(MihomoError::Io)?;
 
         let request = format!(
             "PUT /configs HTTP/1.1\r\n\
-             Host: {}\r\n\
-             Authorization: Bearer {}\r\n\
-             Content-Type: application/json\r\n\
-             Content-Length: {}\r\n\
-             Connection: close\r\n\r\n\
-             {}",
+Host: {}\r\n\
+Authorization: Bearer {}\r\n\
+Content-Type: application/json\r\n\
+Content-Length: {}\r\n\
+Connection: close\r\n\
+\r\n\
+{}",
             self.config.api_address,
             self.config.api_secret,
-            body.to_string().len(),
+            body.len(),
             body,
         );
 
@@ -307,13 +334,32 @@ impl MihomoManager {
             .write_all(request.as_bytes())
             .map_err(MihomoError::Io)?;
 
-        Ok(())
+        // Read response to detect reload failures
+        let mut response = String::new();
+        stream
+            .read_to_string(&mut response)
+            .map_err(MihomoError::Io)?;
+
+        if response.contains("200 OK") || response.contains("204 No Content") {
+            Ok(())
+        } else {
+            eprintln!("mihomo reload response: {response}");
+            Err(MihomoError::Io(std::io::Error::other(
+                format!("mihomo reload failed: {response}"),
+            )))
+        }
     }
 
     /// Get the API address.
     #[must_use]
     pub fn api_address(&self) -> &str {
         &self.config.api_address
+    }
+
+    /// Get the API secret.
+    #[must_use]
+    pub fn api_secret(&self) -> &str {
+        &self.config.api_secret
     }
 
     /// Get a reference to the configuration.
@@ -328,7 +374,7 @@ impl MihomoManager {
         let addr = self.config.api_address.clone();
         std::net::TcpStream::connect_timeout(
             &addr.parse().unwrap_or_else(|_| "127.0.0.1:9090".parse().unwrap()),
-            Duration::from_secs(2),
+            Duration::from_millis(500),
         )
         .is_ok()
     }
@@ -340,6 +386,135 @@ impl MihomoManager {
         }
         self.process = None;
     }
+
+    /// Flush all URLTest proxy groups by triggering a health check on each.
+    ///
+    /// This forces mihomo to re-evaluate node health and switch away from dead
+    /// nodes. Used after system wake from sleep when TCP connections are stale.
+    ///
+    /// # Errors
+    ///
+    /// Returns `MihomoError::NotRunning` if the API port is unreachable.
+    /// Returns `MihomoError::Io` if any HTTP request fails.
+    pub fn flush_urltest_groups(&self) -> Result<usize, MihomoError> {
+        flush_urltest_groups(&self.config.api_address, &self.config.api_secret)
+    }
+}
+
+/// Flush all URLTest proxy groups by triggering a health check on each.
+///
+/// Standalone function that does not require holding the `MihomoManager` lock.
+/// Performs multiple blocking HTTP operations — must NOT be called while any
+/// `Mutex` on `MihomoManager` is held.
+///
+/// # Errors
+///
+/// Returns `MihomoError::NotRunning` if the API port is unreachable.
+/// Returns `MihomoError::Io` if any HTTP request fails.
+pub fn flush_urltest_groups(addr: &str, secret: &str) -> Result<usize, MihomoError> {
+    use std::io::{Read, Write};
+
+    // 1. Quick port check first
+    if std::net::TcpStream::connect_timeout(
+        &addr.parse().unwrap_or_else(|_| "127.0.0.1:9090".parse().unwrap()),
+        Duration::from_millis(500),
+    )
+    .is_err()
+    {
+        return Err(MihomoError::NotRunning);
+    }
+
+    // 2. GET /proxies to list all proxy groups
+    let proxies_body = {
+        let request = format!(
+            "GET /proxies HTTP/1.1\r\n\
+            Host: {addr}\r\n\
+            Authorization: Bearer {secret}\r\n\
+            Connection: close\r\n\
+            \r\n"
+        );
+        let mut stream = std::net::TcpStream::connect(addr)
+            .map_err(MihomoError::Io)?;
+
+        // Set a read timeout to avoid blocking indefinitely.
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .map_err(MihomoError::Io)?;
+        stream.write_all(request.as_bytes()).map_err(MihomoError::Io)?;
+        let mut body = String::new();
+        stream.read_to_string(&mut body).map_err(MihomoError::Io)?;
+        body
+    };
+
+    // Extract the JSON body from HTTP response
+    let json_str = proxies_body
+        .find("\r\n\r\n")
+        .map(|i| &proxies_body[i + 4..])
+        .unwrap_or("");
+
+    let group_names = parse_urltest_group_names(json_str);
+
+    // 3. For each URLTest group, trigger a delay check to force re-evaluation
+    let mut flushed = 0;
+    for name in &group_names {
+        let encoded = url_encode(name);
+        let request = format!(
+            "GET /proxies/{encoded}/delay?url=http://www.gstatic.com/generate_204&timeout=2000 HTTP/1.1\r\n\
+            Host: {addr}\r\n\
+            Authorization: Bearer {secret}\r\n\
+            Connection: close\r\n\
+            \r\n"
+        );
+        if let Ok(mut stream) = std::net::TcpStream::connect(addr) {
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .ok();
+            let _ = stream.write_all(request.as_bytes());
+            // Drain the response but don't need to parse it.
+            let _ = stream.read_to_string(&mut String::new());
+            flushed += 1;
+        }
+    }
+
+    Ok(flushed)
+}
+
+/// Parse the `/proxies` JSON response and extract names of URLTest groups.
+///
+/// Visible for testing.
+pub fn parse_urltest_group_names(json_str: &str) -> Vec<String> {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(json_str) else {
+        return Vec::new();
+    };
+    let Some(proxies) = value.get("proxies").and_then(|p| p.as_object()) else {
+        return Vec::new();
+    };
+
+    proxies
+        .iter()
+        .filter(|(_, info)| {
+            info.get("type")
+                .and_then(|t| t.as_str())
+                .is_some_and(|t| t == "URLTest")
+        })
+        .map(|(name, _)| name.clone())
+        .collect()
+}
+
+/// Minimal percent-encoding for proxy group names used in URL paths.
+fn url_encode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char);
+            }
+            _ => {
+                out.push_str(&format!("%{byte:02X}"));
+            }
+        }
+    }
+    out
 }
 
 impl Drop for MihomoManager {
@@ -589,5 +764,45 @@ mod tests {
         let msg = format!("{err}");
         assert!(msg.contains("7890"));
         assert!(msg.contains("non-mihomo"));
+    }
+
+    #[test]
+    fn flush_urltest_groups_returns_not_running_when_api_unreachable() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let config = test_config(dir.path());
+        let mgr = MihomoManager::new(config);
+
+        let result = mgr.flush_urltest_groups();
+        assert!(
+            matches!(result, Err(MihomoError::NotRunning)),
+            "Expected NotRunning, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn parse_urltest_groups_extracts_urltest_names() {
+        let json = serde_json::json!({
+            "proxies": {
+                "DIRECT": { "type": "Direct" },
+                "GLOBAL": { "type": "Selector", "now": "DIRECT" },
+                "site-github": { "type": "URLTest", "now": "node-1" },
+                "site-google": { "type": "URLTest", "now": "node-2" },
+                "PROXY": { "type": "Selector", "now": "site-github" }
+            }
+        });
+        let groups = super::parse_urltest_group_names(&json.to_string());
+        assert_eq!(groups, vec!["site-github", "site-google"]);
+    }
+
+    #[test]
+    fn parse_urltest_groups_returns_empty_when_no_urltest() {
+        let json = serde_json::json!({
+            "proxies": {
+                "DIRECT": { "type": "Direct" },
+                "GLOBAL": { "type": "Selector" }
+            }
+        });
+        let groups = super::parse_urltest_group_names(&json.to_string());
+        assert!(groups.is_empty());
     }
 }
