@@ -179,10 +179,13 @@ impl ProbeService {
         });
 
         let mut probe_results = Vec::new();
-        for (id, result) in &results {
-            self.history.push(result.clone());
-            probe_results.push(result.clone());
-            let _ = id; // used for ordering context
+        for (id, result) in results {
+            // ProbeClient returns ProbeResult with site_id set to the probe URL,
+            // not the actual site ID. Override with the correct ID from site_urls.
+            let mut fixed = result;
+            fixed.site_id = id;
+            self.history.push(fixed.clone());
+            probe_results.push(fixed);
         }
 
         probe_results

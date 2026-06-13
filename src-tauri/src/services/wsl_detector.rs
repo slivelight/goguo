@@ -46,6 +46,12 @@ pub trait FileReader {
 
     /// Return the current user's home directory, if discoverable.
     fn home_dir(&self) -> Option<PathBuf>;
+
+    /// Return the Windows user profile directory via `/mnt/c/Users/<name>`.
+    ///
+    /// In WSL this maps to the Windows host's `%USERPROFILE%`.
+    /// Returns `None` when not in WSL or the path cannot be discovered.
+    fn windows_user_profile_dir(&self) -> Option<PathBuf>;
 }
 
 /// Production implementation that delegates to `std::fs` and `std::env`.
@@ -58,6 +64,23 @@ impl FileReader for SystemFileReader {
 
     fn home_dir(&self) -> Option<PathBuf> {
         std::env::var("HOME").ok().map(PathBuf::from)
+    }
+
+    fn windows_user_profile_dir(&self) -> Option<PathBuf> {
+        std::fs::read_dir("/mnt/c/Users").ok().and_then(|entries| {
+            let mut candidates: Vec<PathBuf> = Vec::new();
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.starts_with('.') || name == "Public" || name == "Default" || name == "Default User" || name == "All Users" {
+                    continue;
+                }
+                let wslconfig_path = entry.path().join(".wslconfig");
+                if wslconfig_path.exists() {
+                    candidates.push(entry.path());
+                }
+            }
+            candidates.first().cloned()
+        })
     }
 }
 
@@ -137,6 +160,23 @@ fn unquote(s: &str) -> &str {
         .unwrap_or(s)
 }
 
+/// Parses `ip -4 addr show eth0` output to extract the IPv4 address.
+///
+/// Expected line format: `inet 192.168.x.y/20 brd ... scope global eth0`
+#[must_use]
+pub fn parse_ip_addr_output(output: &str) -> Option<String> {
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("inet ") {
+            let ip_part = rest.split('/').next()?;
+            if ip_part != "127.0.0.1" && !ip_part.is_empty() {
+                return Some(ip_part.to_string());
+            }
+        }
+    }
+    None
+}
+
 // ---------------------------------------------------------------------------
 // WslDetector
 // ---------------------------------------------------------------------------
@@ -162,6 +202,11 @@ impl<R: FileReader> WslDetector<R> {
 
     /// Determines the WSL networking mode.
     ///
+    /// Resolution strategy:
+    /// 1. Check Linux `$HOME/.wslconfig` (inside WSL)
+    /// 2. Fallback: check Windows `/mnt/c/Users/<name>/.wslconfig` (host side)
+    /// 3. Default: NAT (WSL2 default when no config or no networkingMode key)
+    ///
     /// If we are not inside WSL, returns [`WslNetworkMode::NotInstalled`].
     #[must_use]
     pub fn detect_network_mode(&self) -> WslNetworkMode {
@@ -178,6 +223,17 @@ impl<R: FileReader> WslDetector<R> {
                     .read_to_string(&config_path)
                     .ok()
                     .and_then(|content| parse_wslconfig_network_mode(&content))
+            })
+            .or_else(|| {
+                self.reader
+                    .windows_user_profile_dir()
+                    .and_then(|win_profile| {
+                        let config_path = win_profile.join(".wslconfig");
+                        self.reader
+                            .read_to_string(&config_path)
+                            .ok()
+                            .and_then(|content| parse_wslconfig_network_mode(&content))
+                    })
             })
             .unwrap_or_default();
 
@@ -196,6 +252,41 @@ impl<R: FileReader> WslDetector<R> {
             .ok()
             .and_then(|content| parse_os_release(&content))
     }
+
+    /// Returns the WSL instance's primary IP address (eth0).
+    ///
+    /// In NAT mode, this IP is reachable from the Windows host.
+    /// In mirrored mode, `127.0.0.1` is shared and this method
+    /// returns `None` (caller should use `127.0.0.1` instead).
+    ///
+    /// Returns `None` when not in WSL or the IP cannot be determined.
+    #[must_use]
+    pub fn get_wsl_ip(&self) -> Option<String> {
+        if !self.is_running_in_wsl() {
+            return None;
+        }
+        if self.detect_network_mode() == WslNetworkMode::Mirrored {
+            return None;
+        }
+        get_wsl_eth0_ip()
+    }
+}
+
+/// Returns the first non-loopback IPv4 address from WSL's eth0 interface.
+///
+/// Uses `/proc/net/fib_trail` or falls back to parsing `ip addr show eth0`.
+/// Pure function with no dependency on `FileReader` — reads network state
+/// directly from the kernel.
+#[must_use]
+pub fn get_wsl_eth0_ip() -> Option<String> {
+    std::process::Command::new("ip")
+        .args(["-4", "addr", "show", "eth0"])
+        .output()
+        .ok()
+        .and_then(|out| {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            parse_ip_addr_output(&stdout)
+        })
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +298,7 @@ impl<R: FileReader> WslDetector<R> {
 pub struct MockFileReader {
     files: std::collections::HashMap<String, String>,
     home: Option<PathBuf>,
+    win_profile: Option<PathBuf>,
 }
 
 #[cfg(test)]
@@ -227,6 +319,12 @@ impl MockFileReader {
         self.home = Some(path);
         self
     }
+
+    #[must_use]
+    pub fn with_win_profile(mut self, path: PathBuf) -> Self {
+        self.win_profile = Some(path);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -241,6 +339,10 @@ impl FileReader for MockFileReader {
 
     fn home_dir(&self) -> Option<PathBuf> {
         self.home.clone()
+    }
+
+    fn windows_user_profile_dir(&self) -> Option<PathBuf> {
+        self.win_profile.clone()
     }
 }
 
@@ -420,5 +522,109 @@ ID=debian
         let mock = MockFileReader::new();
         let detector = WslDetector::new(mock);
         assert!(detector.get_distro_info().is_none());
+    }
+
+    // ---- detect_network_mode fallback to Windows .wslconfig ---------------
+
+    #[test]
+    fn detector_detect_network_mode_mirrored_from_windows_side() {
+        let mock = MockFileReader::new()
+            .with_file(
+                "/proc/version",
+                "Linux version 5.15.133.1-microsoft-standard-WSL2",
+            )
+            .with_home(PathBuf::from("/home/test"))
+            .with_win_profile(PathBuf::from("/mnt/c/Users/testuser"))
+            .with_file(
+                "/mnt/c/Users/testuser/.wslconfig",
+                "[wsl2]\nnetworkingMode=mirrored\nmemory=4GB",
+            );
+        let detector = WslDetector::new(mock);
+        assert_eq!(detector.detect_network_mode(), WslNetworkMode::Mirrored);
+    }
+
+    #[test]
+    fn detector_detect_network_mode_prefers_linux_side() {
+        let mock = MockFileReader::new()
+            .with_file(
+                "/proc/version",
+                "Linux version 5.15.133.1-microsoft-standard-WSL2",
+            )
+            .with_file("/home/test/.wslconfig", "[wsl2]\nnetworkingMode=nat\n")
+            .with_home(PathBuf::from("/home/test"))
+            .with_win_profile(PathBuf::from("/mnt/c/Users/testuser"))
+            .with_file(
+                "/mnt/c/Users/testuser/.wslconfig",
+                "[wsl2]\nnetworkingMode=mirrored\n",
+            );
+        let detector = WslDetector::new(mock);
+        // Linux side should be preferred; it says NAT
+        assert_eq!(detector.detect_network_mode(), WslNetworkMode::Nat);
+    }
+
+    #[test]
+    fn detector_detect_network_mode_windows_side_no_config_means_nat() {
+        let mock = MockFileReader::new()
+            .with_file(
+                "/proc/version",
+                "Linux version 5.15.133.1-microsoft-standard-WSL2",
+            )
+            .with_win_profile(PathBuf::from("/mnt/c/Users/testuser"));
+        // No .wslconfig on Windows side either → default NAT
+        let detector = WslDetector::new(mock);
+        assert_eq!(detector.detect_network_mode(), WslNetworkMode::Nat);
+    }
+
+    // ---- get_wsl_ip --------------------------------------------------------
+
+    #[test]
+    fn get_wsl_ip_returns_none_when_not_in_wsl() {
+        let mock = MockFileReader::new();
+        let detector = WslDetector::new(mock);
+        assert!(detector.get_wsl_ip().is_none());
+    }
+
+    #[test]
+    fn get_wsl_ip_returns_none_when_mirrored() {
+        let mock = MockFileReader::new()
+            .with_file(
+                "/proc/version",
+                "Linux version 5.15.133.1-microsoft-standard-WSL2",
+            )
+            .with_file("/home/test/.wslconfig", "[wsl2]\nnetworkingMode=mirrored\n")
+            .with_home(PathBuf::from("/home/test"));
+        let detector = WslDetector::new(mock);
+        assert!(detector.get_wsl_ip().is_none());
+    }
+
+    // ---- parse_ip_addr_output -----------------------------------------------
+
+    #[test]
+    fn parse_ip_addr_output_extracts_ip() {
+        let output = "3: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 65575 qdisc noqueue state UP group default qlen 1000\n    inet 192.168.177.224/20 brd 192.168.191.255 scope global eth0\n    inet6 fe80::215:5dff:feed:c2e6/64 scope link eth0\n";
+        assert_eq!(
+            parse_ip_addr_output(output),
+            Some("192.168.177.224".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_ip_addr_output_skips_loopback() {
+        let output = "    inet 127.0.0.1/8 scope host lo\n";
+        assert!(parse_ip_addr_output(output).is_none());
+    }
+
+    #[test]
+    fn parse_ip_addr_output_empty_returns_none() {
+        assert!(parse_ip_addr_output("").is_none());
+    }
+
+    #[test]
+    fn parse_ip_addr_output_multiple_inet_picks_first_non_loopback() {
+        let output = "    inet 127.0.0.1/8 scope host lo\n    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0\n";
+        assert_eq!(
+            parse_ip_addr_output(output),
+            Some("192.168.1.100".to_string())
+        );
     }
 }

@@ -47,15 +47,19 @@ impl ProxyGuard {
 
     /// Perform a single health check and take action if needed.
     ///
+    /// `is_running` should be pre-computed by the caller (outside any lock)
+    /// to avoid holding locks during blocking health checks.
+    ///
     /// Returns the action taken:
     /// - `Healthy` if mihomo is running and API is responsive
     /// - `Restarted` if mihomo was dead and successfully restarted
     /// - `RecoveryTriggered` if restart limit was exceeded
     pub fn check_and_recover(
         &mut self,
+        is_running: bool,
         mihomo: &mut MihomoManager,
     ) -> GuardAction {
-        if mihomo.is_running() {
+        if is_running {
             self.restart_count = 0;
             return GuardAction::Healthy;
         }
@@ -79,6 +83,20 @@ impl ProxyGuard {
                     }
                 }
             }
+        }
+    }
+
+    /// Schedule a restart attempt without actually calling `mihomo.start()`.
+    ///
+    /// Increments the restart counter and returns the decision. The caller
+    /// must execute `mihomo.start()` **outside** any locks to avoid blocking UI.
+    pub fn schedule_restart(&mut self) -> GuardAction {
+        if self.restart_count >= self.config.max_restart_attempts {
+            return GuardAction::RecoveryTriggered;
+        }
+        self.restart_count += 1;
+        GuardAction::Restarted {
+            attempt: self.restart_count,
         }
     }
 }
@@ -116,7 +134,7 @@ mod tests {
         let mut guard = ProxyGuard::new(test_guard_config());
 
         // Mihomo not running → restart attempt (will fail since binary missing).
-        let action = guard.check_and_recover(&mut mihomo);
+        let action = guard.check_and_recover(false, &mut mihomo);
         // Since binary is missing, start fails. But first attempt returns Restarted.
         assert!(matches!(action, GuardAction::Restarted { attempt: 1 }));
         assert_eq!(guard.restart_count(), 1);
@@ -131,12 +149,12 @@ mod tests {
 
         // Simulate max restart attempts exhausted.
         for _ in 0..3 {
-            let _ = guard.check_and_recover(&mut mihomo);
+            let _ = guard.check_and_recover(false, &mut mihomo);
         }
         assert_eq!(guard.restart_count(), 3);
 
         // Next check should trigger recovery.
-        let action = guard.check_and_recover(&mut mihomo);
+        let action = guard.check_and_recover(false, &mut mihomo);
         assert_eq!(action, GuardAction::RecoveryTriggered);
     }
 
@@ -175,9 +193,39 @@ mod tests {
         let mut guard = ProxyGuard::new(test_guard_config());
 
         assert_eq!(guard.restart_count(), 0);
-        let _ = guard.check_and_recover(&mut mihomo);
+        let _ = guard.check_and_recover(false, &mut mihomo);
         assert_eq!(guard.restart_count(), 1);
-        let _ = guard.check_and_recover(&mut mihomo);
+        let _ = guard.check_and_recover(false, &mut mihomo);
         assert_eq!(guard.restart_count(), 2);
+    }
+
+    #[test]
+    fn check_and_recover_returns_healthy_when_pre_computed_running() {
+        // New behavior: caller passes is_running=true (pre-computed outside lock).
+        // Guard should return Healthy without touching mihomo.
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let config = test_mihomo_config(dir.path());
+        let mut mihomo = MihomoManager::new(config);
+        let mut guard = ProxyGuard::new(test_guard_config());
+        guard.restart_count = 2; // simulate prior failures
+
+        let action = guard.check_and_recover(true, &mut mihomo);
+
+        assert_eq!(action, GuardAction::Healthy);
+        assert_eq!(guard.restart_count(), 0, "restart_count should be reset on healthy");
+    }
+
+    #[test]
+    fn check_and_recover_attempts_restart_when_pre_computed_not_running() {
+        let dir = tempfile::TempDir::new().expect("temp dir");
+        let config = test_mihomo_config(dir.path());
+        let mut mihomo = MihomoManager::new(config);
+        let mut guard = ProxyGuard::new(test_guard_config());
+
+        let action = guard.check_and_recover(false, &mut mihomo);
+
+        // Binary missing → start fails, but first attempt returns Restarted.
+        assert!(matches!(action, GuardAction::Restarted { attempt: 1 }));
+        assert_eq!(guard.restart_count(), 1);
     }
 }

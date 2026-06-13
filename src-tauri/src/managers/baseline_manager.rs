@@ -8,6 +8,9 @@ use crate::models::recovery::{ItemResult, RecoveryItem};
 use crate::services::recovery::RecoveryManager;
 use crate::storage::baseline_storage::BaselineStorage;
 
+#[cfg(target_os = "linux")]
+use crate::services::wsl_detector::{SystemFileReader, WslDetector};
+
 /// Result of comparing a single state item against baseline.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComparisonResult {
@@ -397,14 +400,74 @@ impl BaselineManager {
     /// Apply proxy environment variables to the system.
     ///
     /// Writes the proxy address (constructed from `mixed_port`) into
+    /// Internal helper: determine the proxy address that Windows should use.
+    ///
+    /// In WSL2 NAT mode, Windows cannot reach WSL's `127.0.0.1`, so we
+    /// return the WSL eth0 IP (e.g. `192.168.177.224`). In mirrored mode,
+    /// localhost is shared, so `127.0.0.1` works. On pure Linux or Windows,
+    /// `127.0.0.1` is always correct.
+    #[must_use]
+    pub fn determine_proxy_address(&self, mixed_port: u16) -> String {
+        #[cfg(target_os = "linux")]
+        {
+            let detector = WslDetector::new(SystemFileReader);
+            if detector.is_running_in_wsl() {
+                match detector.detect_network_mode() {
+                    crate::services::wsl_detector::WslNetworkMode::Nat => {
+                        if let Some(wsl_ip) = detector.get_wsl_ip() {
+                            return format!("{wsl_ip}:{mixed_port}");
+                        }
+                    }
+                    crate::services::wsl_detector::WslNetworkMode::Mirrored | crate::services::wsl_detector::WslNetworkMode::NotInstalled => {}
+                }
+            }
+        }
+
+        format!("127.0.0.1:{mixed_port}")
+    }
+
     /// `/etc/environment` via the adapter's `write_state` method.
     ///
     /// # Errors
     ///
     /// Returns a string describing the failure if the adapter cannot write.
     pub fn apply_proxy_env(&self, mixed_port: u16) -> Result<(), String> {
-        let proxy_url = format!("http://127.0.0.1:{mixed_port}");
+        let proxy_url = format!("http://{}", self.determine_proxy_address(mixed_port));
         self.write_proxy_env_values(&proxy_url, &proxy_url, "localhost,127.0.0.1,::1")
+    }
+
+    /// Activate Windows system proxy via registry.
+    ///
+    /// Sets `ProxyEnable=1` and `ProxyServer` to the given proxy address.
+    /// No-op if no Windows adapter with `win-system-proxy` definition is available
+    /// (e.g. running on Linux without remote Windows access).
+    ///
+    /// # Errors
+    ///
+    /// Returns a string describing the failure if the adapter cannot write to registry.
+    pub fn activate_system_proxy(&self, proxy_server: &str) -> Result<(), String> {
+        let value = serde_json::json!({
+            "ProxyEnable": 1u32,
+            "ProxyServer": proxy_server,
+            "ProxyOverride": "localhost;127.0.0.1;::1;<local>",
+        });
+
+        for adapter in &self.adapters {
+            let defs = adapter.state_item_definitions();
+            if defs.iter().any(|d| d.id == "win-system-proxy") {
+                let item = StateItem {
+                    id: "win-system-proxy".to_string(),
+                    platform: Platform::Windows,
+                    category: StateItemCategory::Restorable,
+                    value,
+                    collected_at: String::new(),
+                    classification_reason: String::new(),
+                };
+                return adapter.write_state(&item);
+            }
+        }
+        // No Windows adapter found — no-op on Linux-only environments
+        Ok(())
     }
 
     /// Internal helper: write proxy-env values via adapter.
