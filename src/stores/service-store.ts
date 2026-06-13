@@ -1,11 +1,12 @@
 import { create } from 'zustand';
-import type { ServiceStartedPayload, ServiceStoppedPayload, AutoRecoveryTriggeredPayload } from '../lib/types';
+import type { ServiceStartedPayload, ServiceStoppedPayload, AutoRecoveryTriggeredPayload, ProxyRecoveringPayload, ProxyRecoveredPayload } from '../lib/types';
 import { getServiceStatus } from '../lib/tauri-ipc';
-import { subscribeServiceStarted, subscribeServiceStopped, subscribeAutoRecoveryTriggered } from '../lib/events';
+import { subscribeServiceStarted, subscribeServiceStopped, subscribeAutoRecoveryTriggered, subscribeProxyRecovering, subscribeProxyRecovered } from '../lib/events';
 
 interface ServiceState {
   mihomoRunning: boolean;
   proxyGuardRestartCount: number;
+  isRecovering: boolean;
   isLoading: boolean;
   error: string | null;
 }
@@ -15,12 +16,15 @@ interface ServiceActions {
   handleServiceStarted: (payload: ServiceStartedPayload) => void;
   handleServiceStopped: (_payload: ServiceStoppedPayload) => void;
   handleAutoRecoveryTriggered: (payload: AutoRecoveryTriggeredPayload) => void;
+  handleProxyRecovering: (payload: ProxyRecoveringPayload) => void;
+  handleProxyRecovered: (payload: ProxyRecoveredPayload) => void;
   reset: () => void;
 }
 
 const initialState: ServiceState = {
   mihomoRunning: false,
   proxyGuardRestartCount: 0,
+  isRecovering: false,
   isLoading: false,
   error: null,
 };
@@ -63,6 +67,14 @@ export const useServiceStore = create<ServiceState & ServiceActions>((set) => ({
     });
   },
 
+  handleProxyRecovering: (_payload: ProxyRecoveringPayload) => {
+    set({ isRecovering: true });
+  },
+
+  handleProxyRecovered: (_payload: ProxyRecoveredPayload) => {
+    set({ isRecovering: false });
+  },
+
   reset: () => set(initialState),
 }));
 
@@ -75,5 +87,11 @@ export function initializeServiceStore(): void {
   });
   subscribeAutoRecoveryTriggered((payload) => {
     useServiceStore.getState().handleAutoRecoveryTriggered(payload);
+  });
+  subscribeProxyRecovering((payload) => {
+    useServiceStore.getState().handleProxyRecovering(payload);
+  });
+  subscribeProxyRecovered((payload) => {
+    useServiceStore.getState().handleProxyRecovered(payload);
   });
 }

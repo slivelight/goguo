@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useServiceStore, initializeServiceStore } from '../service-store';
 import { getServiceStatus } from '../../lib/tauri-ipc';
-import { subscribeServiceStarted, subscribeServiceStopped, subscribeAutoRecoveryTriggered } from '../../lib/events';
+import { subscribeServiceStarted, subscribeServiceStopped, subscribeAutoRecoveryTriggered, subscribeProxyRecovering, subscribeProxyRecovered } from '../../lib/events';
 
 vi.mock('../../lib/tauri-ipc', () => ({
   getServiceStatus: vi.fn(),
@@ -11,6 +11,8 @@ vi.mock('../../lib/events', () => ({
   subscribeServiceStarted: vi.fn((_cb) => Promise.resolve(() => {})),
   subscribeServiceStopped: vi.fn((_cb) => Promise.resolve(() => {})),
   subscribeAutoRecoveryTriggered: vi.fn((_cb) => Promise.resolve(() => {})),
+  subscribeProxyRecovering: vi.fn((_cb) => Promise.resolve(() => {})),
+  subscribeProxyRecovered: vi.fn((_cb) => Promise.resolve(() => {})),
 }));
 
 describe('service-store', () => {
@@ -97,5 +99,24 @@ describe('service-store', () => {
     expect(subscribeServiceStarted).toHaveBeenCalled();
     expect(subscribeServiceStopped).toHaveBeenCalled();
     expect(subscribeAutoRecoveryTriggered).toHaveBeenCalled();
+  });
+
+  // F111-T6: proxy recovery state
+  it('handleProxyRecovering sets isRecovering to true', () => {
+    useServiceStore.getState().handleProxyRecovering({ reason: 'post-wake', sleep_duration_secs: 300 });
+    expect(useServiceStore.getState().isRecovering).toBe(true);
+  });
+
+  it('handleProxyRecovered sets isRecovering to false', () => {
+    useServiceStore.getState().handleProxyRecovering({ reason: 'post-wake', sleep_duration_secs: 300 });
+    useServiceStore.getState().handleProxyRecovered({ flushed_groups: true });
+    expect(useServiceStore.getState().isRecovering).toBe(false);
+  });
+
+  it('initializeServiceStore subscribes to proxy recovery events', async () => {
+    initializeServiceStore();
+
+    expect(subscribeProxyRecovering).toHaveBeenCalled();
+    expect(subscribeProxyRecovered).toHaveBeenCalled();
   });
 });

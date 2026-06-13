@@ -224,6 +224,15 @@ export interface AutoRecoveryTriggeredPayload {
   max_attempts: number;
 }
 
+export interface ProxyRecoveringPayload {
+  reason: string;
+  sleep_duration_secs: number;
+}
+
+export interface ProxyRecoveredPayload {
+  flushed_groups: boolean;
+}
+
 export interface SiteDefinitionInfo {
   id: string;
   name: string;

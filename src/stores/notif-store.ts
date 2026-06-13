@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { RecoveryStartedPayload, RecoveryCompletedPayload, RecoveryFailedPayload, RecoveryItemCompletedPayload } from '../lib/types';
-import { subscribeRecoveryStarted, subscribeRecoveryCompleted, subscribeRecoveryFailed, subscribeRecoveryItemCompleted } from '../lib/events';
+import type { RecoveryStartedPayload, RecoveryCompletedPayload, RecoveryFailedPayload, RecoveryItemCompletedPayload, ProxyRecoveringPayload, ProxyRecoveredPayload } from '../lib/types';
+import { subscribeRecoveryStarted, subscribeRecoveryCompleted, subscribeRecoveryFailed, subscribeRecoveryItemCompleted, subscribeProxyRecovering, subscribeProxyRecovered } from '../lib/events';
 
 type NotificationType = 'info' | 'success' | 'warning' | 'error';
 
@@ -29,6 +29,8 @@ interface NotifActions {
   handleRecoveryCompleted: (payload: RecoveryCompletedPayload) => void;
   handleRecoveryFailed: (payload: RecoveryFailedPayload) => void;
   handleRecoveryItemCompleted: (payload: RecoveryItemCompletedPayload) => void;
+  handleProxyRecovering: (payload: ProxyRecoveringPayload) => void;
+  handleProxyRecovered: (payload: ProxyRecoveredPayload) => void;
   reset: () => void;
 }
 
@@ -133,6 +135,23 @@ export const useNotifStore = create<NotifState & NotifActions>((set, get) => ({
     }
   },
 
+  handleProxyRecovering: (payload: ProxyRecoveringPayload) => {
+    const mins = Math.round(payload.sleep_duration_secs / 60);
+    get().addNotification(
+      'info',
+      '正在恢复连接',
+      `系统休眠 ${mins} 分钟后自动恢复代理节点...`
+    );
+  },
+
+  handleProxyRecovered: (_payload: ProxyRecoveredPayload) => {
+    get().addNotification(
+      'success',
+      '连接已恢复',
+      '代理节点已刷新'
+    );
+  },
+
   reset: () => set(initialState),
 }));
 
@@ -148,5 +167,11 @@ export function initializeNotifStore(): void {
   });
   subscribeRecoveryItemCompleted((payload) => {
     useNotifStore.getState().handleRecoveryItemCompleted(payload);
+  });
+  subscribeProxyRecovering((payload) => {
+    useNotifStore.getState().handleProxyRecovering(payload);
+  });
+  subscribeProxyRecovered((payload) => {
+    useNotifStore.getState().handleProxyRecovered(payload);
   });
 }
