@@ -20,10 +20,10 @@ const TEMPLATE_SITE_DETAILS: Record<string, SiteDetail[]> = {
     { id: 'npmjs', name: 'npm', domain_count: 3, domains: { core: ['npmjs.com', 'registry.npmjs.org', 'static.npmjs.com'] } },
     { id: 'claude', name: 'Claude', domain_count: 15, domains: { core: ['claude.ai', 'claude.com', 'anthropic.com'], api: ['api.anthropic.com'], cdn: ['cdn.anthropic.com'], third_party: ['intercom.io', 'sentry.io', 'statsigapi.net'], cross_dependency: ['accounts.google.com', 'fonts.googleapis.com', 'fonts.gstatic.com'] } },
     { id: 'chatgpt', name: 'ChatGPT', domain_count: 23, domains: { core: ['chatgpt.com', 'openai.com', 'chat.openai.com', 'help.openai.com', 'platform.openai.com'], api: ['api.openai.com', 'auth.openai.com'], cdn: ['oaistatic.com', 'oaiusercontent.com', 'cdn.openai.com'], third_party: ['challenges.cloudflare.com', 'sentry.io', 'js.stripe.com'] } },
-    { id: 'oracle', name: 'Oracle', domain_count: 5, domains: { core: ['oracle.com'], services: ['cloud.oracle.com', 'docs.oracle.com'], cdn: ['oracleimg.com'] } },
+    { id: 'oracle', name: 'Oracle', domain_count: 4, domains: { core: ['oracle.com'], services: ['cloud.oracle.com', 'docs.oracle.com'], cdn: ['oracleimg.com'] } },
     { id: 'docker', name: 'Docker', domain_count: 4, domains: { core: ['docker.com', 'docker.io'], packages: ['registry.docker.com', 'registry.hub.docker.com'] } },
     { id: 'stackoverflow', name: 'Stack Overflow', domain_count: 10, domains: { core: ['stackoverflow.com'], cdn: ['sstatic.net', 'cdn.sstatic.net'], services: ['stackexchange.com'], cross_dependency: ['superuser.com', 'askubuntu.com', 'serverfault.com', 'stackapps.com'] } },
-    { id: 'pypi', name: 'PyPI', domain_count: 4, domains: { core: ['pypi.org'], packages: ['files.pythonhosted.org'], api: ['test.pypi.org'] } },
+    { id: 'pypi', name: 'PyPI', domain_count: 3, domains: { core: ['pypi.org'], packages: ['files.pythonhosted.org'], api: ['test.pypi.org'] } },
     { id: 'crates', name: 'Crates.io', domain_count: 3, domains: { core: ['crates.io', 'static.crates.io', 'index.crates.io'] } },
   ],
   office: [

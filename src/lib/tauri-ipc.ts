@@ -104,10 +104,6 @@ export async function previewRules(): Promise<string[]> {
   return invoke('preview_rules');
 }
 
-export async function applyRules(confirm: boolean): Promise<AddSiteResponse> {
-  return invoke('apply_rules', { confirm });
-}
-
 export async function getSiteReachability(): Promise<ReachabilityResponse> {
   return invoke('get_site_reachability');
 }

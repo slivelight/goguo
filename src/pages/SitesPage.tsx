@@ -8,8 +8,6 @@ import EditSiteDialog from '../components/shared/EditSiteDialog';
 import TemplateConfirmDialog from '../components/shared/TemplateConfirmDialog';
 import type { SiteInfo } from '../lib/types';
 
-const BUILTIN_IDS = ['github', 'npmjs', 'claude', 'chatgpt', 'docker', 'google', 'stackoverflow', 'pypi', 'crates', 'oracle', 'wikipedia', 'whatsapp', 'instagram', 'canva', 'twitter-x'];
-
 function SitesPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -20,22 +18,12 @@ function SitesPage() {
   const [siteToEdit, setSiteToEdit] = useState<SiteInfo | null>(null);
   const [expandedSiteId, setExpandedSiteId] = useState<string | null>(null);
 
-  const { sites, reachability, addSite, removeSite, applyTemplate, fetchSites } = useSiteStore();
+  const { sites, reachability, removeSite, applyTemplate, fetchSites } = useSiteStore();
   const { addNotification } = useNotifStore();
 
   useEffect(() => {
     fetchSites();
   }, []);
-
-  const handleAddSite = async (siteId: string) => {
-    const result = await addSite(siteId);
-    if (result.success) {
-      addNotification('success', '站点添加成功', `已添加 ${siteId}，覆盖 ${result.site?.domain_count || 0} 个域名`);
-      setShowAddDialog(false);
-    } else {
-      addNotification('error', '添加失败', result.error || '未知错误');
-    }
-  };
 
   const handleSiteCreated = () => {
     setShowAddDialog(false);
@@ -123,15 +111,13 @@ function SitesPage() {
                       >
                         {isExpanded ? '收起域名' : '展开域名'}
                       </button>
-                      {!BUILTIN_IDS.includes(site.id) && (
-                        <button
-                          className="btn btn-secondary"
-                          style={{ fontSize: '12px', padding: '4px 8px' }}
-                          onClick={() => handleEditSite(site)}
-                        >
-                          编辑
-                        </button>
-                      )}
+                      <button
+                        className="btn btn-secondary"
+                        style={{ fontSize: '12px', padding: '4px 8px' }}
+                        onClick={() => handleEditSite(site)}
+                      >
+                        编辑
+                      </button>
                       <button
                         className="btn btn-secondary" 
                         style={{ fontSize: '12px', padding: '4px 8px' }}

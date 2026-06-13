@@ -5,9 +5,10 @@ import AddSiteDialog from '../AddSiteDialog';
 vi.mock('../../../lib/tauri-ipc', () => ({
   lookupSite: vi.fn(),
   createSite: vi.fn(),
+  addTargetSite: vi.fn(),
 }));
 
-import { lookupSite, createSite } from '../../../lib/tauri-ipc';
+import { lookupSite, createSite, addTargetSite } from '../../../lib/tauri-ipc';
 
 describe('AddSiteDialog (v2)', () => {
   const mockOnSiteCreated = vi.fn();
@@ -101,23 +102,23 @@ describe('AddSiteDialog (v2)', () => {
     });
   });
 
-  it('calls createSite on confirm with matched domains', async () => {
+  it('calls addTargetSite on confirm with matched builtin site', async () => {
     vi.mocked(lookupSite).mockResolvedValue({
-      id: 'npmjs',
-      name: 'npm',
-      domain_count: 3,
-      domains: { core: ['npmjs.com', 'registry.npmjs.org', 'static.npmjs.com'] },
+      id: 'github',
+      name: 'GitHub',
+      domain_count: 47,
+      domains: { core: ['github.com', 'github.io'] },
     });
-    vi.mocked(createSite).mockResolvedValue({
+    vi.mocked(addTargetSite).mockResolvedValue({
       success: true,
-      site: { id: 'npm', name: 'npm', domain_count: 3, domains: {} },
-      rules_generated: 3,
+      rules_generated: 47,
+      verification_passed: true,
     });
 
     render(<AddSiteDialog isOpen={true} onSiteCreated={mockOnSiteCreated} onCancel={mockOnCancel} />);
 
     const input = screen.getByPlaceholderText(/输入网址或域名/);
-    fireEvent.change(input, { target: { value: 'npmjs.com' } });
+    fireEvent.change(input, { target: { value: 'https://github.com' } });
     fireEvent.click(screen.getByText('查找'));
 
     await waitFor(() => {
@@ -127,21 +128,21 @@ describe('AddSiteDialog (v2)', () => {
     fireEvent.click(screen.getByText('确认添加'));
 
     await waitFor(() => {
-      expect(createSite).toHaveBeenCalledWith('npm', 'npm', ['npmjs.com', 'registry.npmjs.org', 'static.npmjs.com']);
+      expect(addTargetSite).toHaveBeenCalledWith('github');
     });
   });
 
-  it('calls onSiteCreated after successful create', async () => {
+  it('calls onSiteCreated after successful addTargetSite', async () => {
     vi.mocked(lookupSite).mockResolvedValue({
       id: 'chatgpt',
       name: 'ChatGPT',
       domain_count: 23,
       domains: { core: ['chatgpt.com'] },
     });
-    vi.mocked(createSite).mockResolvedValue({
+    vi.mocked(addTargetSite).mockResolvedValue({
       success: true,
-      site: { id: 'chatgpt', name: 'ChatGPT', domain_count: 23, domains: {} },
       rules_generated: 23,
+      verification_passed: true,
     });
 
     render(<AddSiteDialog isOpen={true} onSiteCreated={mockOnSiteCreated} onCancel={mockOnCancel} />);
@@ -159,6 +160,30 @@ describe('AddSiteDialog (v2)', () => {
     await waitFor(() => {
       expect(mockOnSiteCreated).toHaveBeenCalled();
     });
+  });
+
+  it('shows error in degraded mode without domains', async () => {
+    vi.mocked(lookupSite).mockResolvedValue(null);
+
+    render(<AddSiteDialog isOpen={true} onSiteCreated={mockOnSiteCreated} onCancel={mockOnCancel} />);
+
+    const input = screen.getByPlaceholderText(/输入网址或域名/);
+    fireEvent.change(input, { target: { value: 'https://unknown-site.com' } });
+    fireEvent.click(screen.getByText('查找'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/未找到匹配/)).toBeDefined();
+    });
+
+    const nameInput = screen.getByPlaceholderText(/输入站点名称/);
+    fireEvent.change(nameInput, { target: { value: 'My Site' } });
+
+    fireEvent.click(screen.getByText('确认添加'));
+
+    await waitFor(() => {
+      expect(screen.getByText('降级模式下请至少添加一个域名')).toBeDefined();
+    });
+    expect(createSite).not.toHaveBeenCalled();
   });
 
   it('calls onCancel when cancel clicked', () => {

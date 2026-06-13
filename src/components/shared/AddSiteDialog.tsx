@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { lookupSite, createSite } from '../../lib/tauri-ipc';
+import { lookupSite, createSite, addTargetSite } from '../../lib/tauri-ipc';
 import type { SiteDefinitionInfo } from '../../lib/types';
 
 interface AddSiteDialogProps {
@@ -8,11 +8,10 @@ interface AddSiteDialogProps {
   onCancel: () => void;
 }
 
-type Phase = 'input' | 'confirm' | 'creating';
-
 function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) {
   const [urlInput, setUrlInput] = useState('');
-  const [phase, setPhase] = useState<Phase>('input');
+  const [confirmed, setConfirmed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [matchedSite, setMatchedSite] = useState<SiteDefinitionInfo | null>(null);
   const [siteName, setSiteName] = useState('');
   const [isDegraded, setIsDegraded] = useState(false);
@@ -22,7 +21,8 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
 
   const reset = () => {
     setUrlInput('');
-    setPhase('input');
+    setConfirmed(false);
+    setSubmitting(false);
     setMatchedSite(null);
     setSiteName('');
     setIsDegraded(false);
@@ -33,7 +33,7 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
     const trimmed = urlInput.trim();
     if (!trimmed) return;
     setError(null);
-    setPhase('input');
+    setConfirmed(false);
 
     try {
       const result = await lookupSite(trimmed);
@@ -41,12 +41,12 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
         setMatchedSite(result);
         setSiteName(result.name);
         setIsDegraded(false);
-        setPhase('confirm');
+        setConfirmed(true);
       } else {
         setMatchedSite(null);
         setSiteName('');
         setIsDegraded(true);
-        setPhase('confirm');
+        setConfirmed(true);
       }
     } catch {
       setError('查找失败');
@@ -62,16 +62,36 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
   const handleConfirm = async () => {
     if (!siteName.trim()) return;
 
+    // If lookup matched an existing site (builtin or custom), just activate it
+    if (matchedSite && !isDegraded) {
+      setSubmitting(true);
+      try {
+        const result = await addTargetSite(matchedSite.id);
+        if (result.success) {
+          reset();
+          onSiteCreated();
+        } else {
+          setError(result.error || '添加失败');
+          setSubmitting(false);
+        }
+      } catch {
+        setError('添加失败');
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    // Degraded mode: create a new custom site
     const domains = matchedSite
       ? Object.values(matchedSite.domains).flat()
       : [];
 
-    if (isDegraded && domains.length === 0) {
+    if (domains.length === 0) {
       setError('降级模式下请至少添加一个域名');
       return;
     }
 
-    setPhase('creating');
+    setSubmitting(true);
     try {
       const nameKey = siteName.trim().toLowerCase().replace(/\s+/g, '-');
       const result = await createSite(nameKey, siteName.trim(), domains);
@@ -80,11 +100,11 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
         onSiteCreated();
       } else {
         setError(result.error || '创建失败');
-        setPhase('confirm');
+        setSubmitting(false);
       }
     } catch {
       setError('创建失败');
-      setPhase('confirm');
+      setSubmitting(false);
     }
   };
 
@@ -105,7 +125,7 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={phase !== 'input'}
+            disabled={confirmed}
             style={{
               width: '100%',
               padding: '8px 12px',
@@ -120,14 +140,14 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
             className="btn btn-secondary"
             style={{ marginTop: '8px' }}
             onClick={handleLookup}
-            disabled={!urlInput.trim() || phase === 'creating'}
+            disabled={!urlInput.trim() || submitting}
           >
             查找
           </button>
         </div>
 
         {/* Phase 2: Confirm */}
-        {phase === 'confirm' && matchedSite && (
+        {confirmed && matchedSite && (
           <div style={{ marginBottom: '12px' }}>
             <p style={{ fontWeight: '600', marginBottom: '8px' }}>
               已匹配: {matchedSite.name} ({matchedSite.domain_count} 个域名)
@@ -169,7 +189,7 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
           </div>
         )}
 
-        {phase === 'confirm' && isDegraded && (
+        {confirmed && isDegraded && (
           <div style={{ marginBottom: '12px' }}>
             <p style={{ color: 'var(--color-warning, #f59e0b)', marginBottom: '8px' }}>
               未找到匹配的服务提供商，将以降级模式创建自定义站点
@@ -202,12 +222,12 @@ function AddSiteDialog({ isOpen, onSiteCreated, onCancel }: AddSiteDialogProps) 
 
         {/* Actions */}
         <div className="confirm-dialog-actions">
-          {phase === 'confirm' && (
+          {confirmed && (
             <button
               type="button"
               className="btn btn-primary"
               onClick={handleConfirm}
-              disabled={!siteName.trim() || phase === 'creating'}
+              disabled={!siteName.trim() || submitting}
             >
               确认添加
             </button>
