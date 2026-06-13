@@ -47,6 +47,20 @@ const fn default_failure_threshold() -> u32 {
     3
 }
 
+/// Access strategy for a site — determines how traffic is routed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[derive(Default)]
+pub enum AccessStrategy {
+    /// Route through mihomo proxy group (default).
+    #[default]
+    Proxy,
+    /// Resolve domains to verified IPs via hosts mapping, route DIRECT.
+    /// Domains without verified IPs fall back to proxy.
+    IpDirect,
+}
+
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SiteDefinition {
     pub id: String,
@@ -54,6 +68,8 @@ pub struct SiteDefinition {
     pub domains: HashMap<DomainCategory, Vec<String>>,
     #[serde(default)]
     pub health_check: Option<HealthCheckConfig>,
+    #[serde(default)]
+    pub access_strategy: AccessStrategy,
 }
 
 impl SiteDefinition {
@@ -141,6 +157,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::IpDirect,
         }
     }
 
@@ -162,6 +179,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -203,6 +221,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -250,6 +269,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -274,6 +294,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -320,6 +341,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -353,6 +375,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -365,6 +388,9 @@ impl SiteDefinition {
         domains.insert(DomainCategory::Packages, vec![
             "files.pythonhosted.org".to_string(),
         ]);
+        domains.insert(DomainCategory::Api, vec![
+            "test.pypi.org".to_string(),
+        ]);
 
         Self {
             id: "pypi".to_string(),
@@ -375,6 +401,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -396,6 +423,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -407,6 +435,10 @@ impl SiteDefinition {
         ]);
         domains.insert(DomainCategory::Services, vec![
             "cloud.oracle.com".to_string(),
+            "docs.oracle.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Cdn, vec![
+            "oracleimg.com".to_string(),
         ]);
 
         Self {
@@ -418,6 +450,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -426,9 +459,14 @@ impl SiteDefinition {
         let mut domains = HashMap::new();
         domains.insert(DomainCategory::Core, vec![
             "wikipedia.org".to_string(),
+            "en.wikipedia.org".to_string(),
         ]);
         domains.insert(DomainCategory::Cdn, vec![
             "wikimedia.org".to_string(),
+            "upload.wikimedia.org".to_string(),
+        ]);
+        domains.insert(DomainCategory::Services, vec![
+            "wikidata.org".to_string(),
         ]);
 
         Self {
@@ -440,6 +478,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -448,9 +487,14 @@ impl SiteDefinition {
         let mut domains = HashMap::new();
         domains.insert(DomainCategory::Core, vec![
             "whatsapp.com".to_string(),
+            "web.whatsapp.com".to_string(),
         ]);
         domains.insert(DomainCategory::Cdn, vec![
             "whatsapp.net".to_string(),
+            "static.whatsapp.net".to_string(),
+        ]);
+        domains.insert(DomainCategory::Api, vec![
+            "api.whatsapp.com".to_string(),
         ]);
 
         Self {
@@ -462,6 +506,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -475,6 +520,10 @@ impl SiteDefinition {
             "cdninstagram.com".to_string(),
             "fbcdn.net".to_string(),
         ]);
+        domains.insert(DomainCategory::Api, vec![
+            "graph.instagram.com".to_string(),
+            "api.instagram.com".to_string(),
+        ]);
 
         Self {
             id: "instagram".to_string(),
@@ -485,6 +534,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -497,6 +547,9 @@ impl SiteDefinition {
         domains.insert(DomainCategory::Cdn, vec![
             "cdn.canva.com".to_string(),
         ]);
+        domains.insert(DomainCategory::Assets, vec![
+            "static.canva.com".to_string(),
+        ]);
 
         Self {
             id: "canva".to_string(),
@@ -507,6 +560,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 
@@ -519,6 +573,11 @@ impl SiteDefinition {
         ]);
         domains.insert(DomainCategory::Cdn, vec![
             "twimg.com".to_string(),
+            "pbs.twimg.com".to_string(),
+            "abs.twimg.com".to_string(),
+        ]);
+        domains.insert(DomainCategory::Api, vec![
+            "api.x.com".to_string(),
         ]);
 
         Self {
@@ -530,6 +589,7 @@ impl SiteDefinition {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         }
     }
 }
@@ -788,6 +848,7 @@ mod tests {
             name: "Custom".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
         
         let json = serde_json::to_string(&site).expect("serialize");
@@ -806,6 +867,7 @@ mod tests {
             name: "Test".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
         
         let all = site.all_domains();

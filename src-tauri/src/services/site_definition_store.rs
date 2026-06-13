@@ -45,28 +45,41 @@ impl SiteDefinitionStore {
         index
     }
 
+    /// Returns the site definition for the given ID.
+    /// Custom overrides take precedence over built-in definitions (lazy copy-on-write).
     #[must_use]
     pub fn get(&self, id: &str) -> Option<SiteDefinition> {
-        if let Some(site) = self.built_in.get(id) {
-            return Some(site.clone());
+        // Custom override takes priority
+        if let Ok(Some(site)) = self.load_custom(id) {
+            return Some(site);
         }
-        self.load_custom(id).ok().flatten()
+        self.built_in.get(id).cloned()
     }
 
+    /// Returns all site definitions. Custom overrides replace built-in entries
+    /// with the same ID; non-overlapping custom sites are appended.
     #[must_use]
     pub fn list_all(&self) -> Vec<SiteDefinition> {
-        let mut result: Vec<SiteDefinition> = self.built_in.values().cloned().collect();
-        
+        let mut custom_ids_set = std::collections::HashSet::new();
+        let mut result: Vec<SiteDefinition> = Vec::new();
+
+        // Load custom overrides first
         if let Ok(custom_ids) = self.list_custom_ids() {
-            for id in custom_ids {
-                if !self.built_in.contains_key(&id) {
-                    if let Ok(Some(site)) = self.load_custom(&id) {
-                        result.push(site);
-                    }
+            for id in &custom_ids {
+                custom_ids_set.insert(id.clone());
+                if let Ok(Some(site)) = self.load_custom(id) {
+                    result.push(site);
                 }
             }
         }
-        
+
+        // Add built-in entries that have no custom override
+        for site in self.built_in.values() {
+            if !custom_ids_set.contains(&site.id) {
+                result.push(site.clone());
+            }
+        }
+
         result.sort_by(|a, b| a.id.cmp(&b.id));
         result
     }
@@ -224,7 +237,7 @@ impl SiteDefinitionStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::site::{DomainCategory, HealthCheckConfig};
+    use crate::models::site::{AccessStrategy, DomainCategory, HealthCheckConfig};
     use std::collections::HashMap;
     use tempfile::tempdir;
 
@@ -283,6 +296,7 @@ mod tests {
                 timeout_secs: 5,
                 failure_threshold: 3,
             }),
+            access_strategy: AccessStrategy::default(),
         };
         
         store.save_custom(&custom).expect("save");
@@ -306,6 +320,7 @@ mod tests {
             name: "Custom".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
         
         store.save_custom(&custom).expect("save");
@@ -327,6 +342,7 @@ mod tests {
             name: "Custom".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
         
         store.save_custom(&custom).expect("save");
@@ -420,25 +436,27 @@ mod tests {
     }
 
     #[test]
-    fn store_custom_overrides_same_id_not_allowed() {
+    fn store_custom_override_takes_precedence_over_builtin() {
         let dir = tempdir().expect("tempdir");
         let store = SiteDefinitionStore::new(dir.path().to_path_buf());
-        
+
         let mut domains = HashMap::new();
         domains.insert(DomainCategory::Core, vec!["evil.com".to_string()]);
-        
+
         let fake_github = SiteDefinition {
             id: "github".to_string(),
             name: "Evil GitHub".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
-        
+
         store.save_custom(&fake_github).expect("save");
-        
+
+        // Custom override should take precedence over builtin
         let loaded = store.get("github").expect("loaded");
-        assert_eq!(loaded.name, "GitHub");
-        assert!(loaded.all_domains().contains(&"github.com".to_string()));
+        assert_eq!(loaded.name, "Evil GitHub");
+        assert!(loaded.all_domains().contains(&"evil.com".to_string()));
     }
 
     #[test]

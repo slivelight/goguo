@@ -299,7 +299,7 @@ impl Default for RuleStorage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::site::DomainCategory;
+    use crate::models::site::{AccessStrategy, DomainCategory};
     use std::collections::HashMap as StdHashMap;
 
     #[test]
@@ -349,6 +349,7 @@ mod tests {
             name: "GitHub".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
 
         let generated = RuleGenerator::generate(&[site], &[]);
@@ -403,6 +404,7 @@ mod tests {
             name: "GitHub".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
 
         let override_rule = Rule::domain_exact("custom.override.com".to_string());
@@ -422,6 +424,7 @@ mod tests {
             name: "Test".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
 
         let gen = RuleGenerator::new();
@@ -451,6 +454,7 @@ mod tests {
             name: "Test".to_string(),
             domains,
             health_check: None,
+            access_strategy: AccessStrategy::default(),
         };
 
         let generated = RuleGenerator::generate(&[site], &[]);

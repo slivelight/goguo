@@ -1,12 +1,15 @@
 use crate::managers::mihomo_manager::MihomoReloader;
 use crate::models::audit::AuditAction;
 use crate::models::probe::ProbeResult;
-use crate::models::site::SiteDefinition;
+use crate::models::site::{AccessStrategy, SiteDefinition};
 use crate::services::audit_logger::AuditLog;
+use crate::services::ip_cache::IpCache;
+use crate::services::ip_scanner::{IpScanner, IpScannerTrait};
 use crate::services::probe_service::{ProbeClient, ProbeService};
 use crate::services::rule_generator::{GeneratedRules, Rule, RuleGenerator, RuleStorage};
 use crate::services::rule_verifier::{ProbeFailure, RuleVerifier, VerificationConfig, VerificationResult};
 use crate::services::site_definition_store::SiteDefinitionStore;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -98,6 +101,12 @@ pub struct SiteRuleEngine {
     user_overrides: Vec<Rule>,
     mihomo_reloader: Option<Arc<dyn MihomoReloader>>,
     audit_logger: Option<Arc<dyn AuditLog>>,
+    ruleset_writer: Option<crate::services::ruleset_writer::RulesetWriter>,
+    active_sites_file: std::path::PathBuf,
+    config_manager: Option<Arc<std::sync::Mutex<crate::services::mihomo_config_manager::MihomoConfigManager>>>,
+    ip_scanner: Arc<dyn IpScannerTrait>,
+    ip_cache: IpCache,
+    ip_cache_file: std::path::PathBuf,
 }
 
 impl SiteRuleEngine {
@@ -108,9 +117,55 @@ impl SiteRuleEngine {
         mihomo_reloader: Option<Arc<dyn MihomoReloader>>,
         audit_logger: Option<Arc<dyn AuditLog>>,
     ) -> Self {
+        Self::new_with_ruleset_writer(data_dir, probe_client, mihomo_reloader, audit_logger, None)
+    }
+
+    #[must_use]
+    pub fn new_with_ruleset_writer(
+        data_dir: &std::path::Path,
+        probe_client: Arc<dyn ProbeClient>,
+        mihomo_reloader: Option<Arc<dyn MihomoReloader>>,
+        audit_logger: Option<Arc<dyn AuditLog>>,
+        ruleset_writer: Option<crate::services::ruleset_writer::RulesetWriter>,
+    ) -> Self {
+        Self::new_with_config_manager(
+            data_dir, probe_client, mihomo_reloader, audit_logger, ruleset_writer, None,
+        )
+    }
+
+    #[must_use]
+    pub fn new_with_config_manager(
+        data_dir: &std::path::Path,
+        probe_client: Arc<dyn ProbeClient>,
+        mihomo_reloader: Option<Arc<dyn MihomoReloader>>,
+        audit_logger: Option<Arc<dyn AuditLog>>,
+        ruleset_writer: Option<crate::services::ruleset_writer::RulesetWriter>,
+        config_manager: Option<crate::services::mihomo_config_manager::MihomoConfigManager>,
+    ) -> Self {
+        Self::new_with_scanner(
+            data_dir,
+            probe_client,
+            mihomo_reloader,
+            audit_logger,
+            ruleset_writer,
+            config_manager,
+            Arc::new(IpScanner::new()),
+        )
+    }
+
+    #[must_use]
+    pub fn new_with_scanner(
+        data_dir: &std::path::Path,
+        probe_client: Arc<dyn ProbeClient>,
+        mihomo_reloader: Option<Arc<dyn MihomoReloader>>,
+        audit_logger: Option<Arc<dyn AuditLog>>,
+        ruleset_writer: Option<crate::services::ruleset_writer::RulesetWriter>,
+        config_manager: Option<crate::services::mihomo_config_manager::MihomoConfigManager>,
+        ip_scanner: Arc<dyn IpScannerTrait>,
+    ) -> Self {
         let site_store = SiteDefinitionStore::new(data_dir.join("config").join("site-definitions"));
         let rule_storage = RuleStorage::new(data_dir.join("rules"));
-        let probe_service = ProbeService::new(
+        let mut probe_service = ProbeService::new(
             crate::models::probe::ProbeConfig::default(),
             probe_client.clone(),
         );
@@ -120,17 +175,115 @@ impl SiteRuleEngine {
             rule_storage_for_verifier,
             VerificationConfig::default(),
         );
-        
-        Self {
+
+        let active_sites_file = data_dir.join("config").join("active-sites.json");
+        let active_sites = Self::load_active_sites(&active_sites_file);
+
+        let ip_cache_file = data_dir.join("config").join("ip-cache.json");
+        let ip_cache = IpCache::load(&ip_cache_file);
+
+        // Register persisted sites with ProbeService
+        for site_id in &active_sites {
+            if let Some(site) = site_store.get(site_id) {
+                let probe_url = site.health_check
+                    .as_ref()
+                    .map_or_else(
+                        || site.all_domains().first().cloned().unwrap_or_default(),
+                        |hc| hc.url.clone(),
+                    );
+                probe_service.register_site(site_id, &probe_url);
+            }
+        }
+
+        let mut engine = Self {
             site_store,
             rule_storage,
             probe_service,
             verifier,
-            active_sites: vec![],
+            active_sites,
             user_overrides: vec![],
             mihomo_reloader,
             audit_logger,
+            ruleset_writer,
+            active_sites_file,
+            config_manager: config_manager.map(|cm| Arc::new(std::sync::Mutex::new(cm))),
+            ip_scanner,
+            ip_cache,
+            ip_cache_file,
+        };
+
+        engine.restore_on_startup();
+        engine
+    }
+
+    /// On startup, regenerate `config.yaml` and reload mihomo to match persisted state.
+    fn restore_on_startup(&mut self) {
+        if self.active_sites.is_empty() {
+            return;
         }
+
+        let site_info = self.collect_active_site_info();
+        let (ip_hosts, direct_domains) = self.scan_ip_direct_sites();
+
+        if let Some(ref cm) = self.config_manager {
+            if let Ok(cm_lock) = cm.lock() {
+                if let Err(e) = cm_lock.regenerate(&site_info, &ip_hosts, &direct_domains) {
+                    eprintln!("Warning: startup config restore failed: {e}");
+                    return;
+                }
+            }
+        }
+        if let Some(ref reloader) = self.mihomo_reloader {
+            if let Err(e) = reloader.reload_config("") {
+                eprintln!("Warning: startup mihomo reload failed: {e}");
+            }
+        }
+    }
+
+    /// Scan IPs for all `IpDirect` active sites, using cache when available.
+    /// Returns (`hosts_mapping`, `direct_domain_names`).
+    fn scan_ip_direct_sites(&mut self) -> (HashMap<String, String>, Vec<String>) {
+        let mut ip_hosts = HashMap::new();
+        let mut direct_domains = Vec::new();
+
+        // Collect all IpDirect domains
+        let mut ip_direct_domains: Vec<String> = Vec::new();
+        for site_id in &self.active_sites {
+            if let Some(site) = self.site_store.get(site_id) {
+                if site.access_strategy == AccessStrategy::IpDirect {
+                    ip_direct_domains.extend(site.all_domains());
+                }
+            }
+        }
+
+        if ip_direct_domains.is_empty() {
+            return (ip_hosts, direct_domains);
+        }
+
+        // Trigger scan only if cache is empty or expired
+        if self.ip_cache.needs_scan(&ip_direct_domains) {
+            let fresh = self.ip_scanner.scan_domains(&ip_direct_domains);
+            for (domain, ip) in &fresh {
+                self.ip_cache.update(domain.clone(), ip.clone());
+            }
+            let _ = self.ip_cache.save(&self.ip_cache_file);
+        }
+
+        // Build hosts + direct_domains from cache
+        let cached = self.ip_cache.get_all_valid();
+        for domain in &ip_direct_domains {
+            if let Some(ip) = cached.get(domain) {
+                direct_domains.push(domain.clone());
+                let hosts_key = if IpScanner::is_parent_match(domain) {
+                    format!("+.{domain}")
+                } else {
+                    domain.clone()
+                };
+                ip_hosts.insert(hosts_key, ip.clone());
+            }
+        }
+
+        (ip_hosts, direct_domains)
     }
 
     /// # Panics
@@ -146,6 +299,7 @@ impl SiteRuleEngine {
         
         if !self.active_sites.contains(&site.id) {
             self.active_sites.push(site.id.clone());
+            self.persist_active_sites();
         }
         
         let generated = self.generate_rules();
@@ -204,6 +358,7 @@ impl SiteRuleEngine {
         }
         
         self.active_sites.remove(idx.expect("checked"));
+        self.persist_active_sites();
         self.probe_service.remove_site(site_id);
         
         let generated = self.generate_rules();
@@ -226,15 +381,92 @@ impl SiteRuleEngine {
         RuleGenerator::generate(&sites, &self.user_overrides)
     }
 
-    fn apply_rules_to_mihomo(&self, rules: &[Rule]) {
+    fn apply_rules_to_mihomo(&mut self, rules: &[Rule]) {
+        // Step 1: Save to internal storage (audit/rollback)
         if let Err(e) = self.rule_storage.save_current(rules) {
             eprintln!("Warning: failed to save rules: {e}");
             return;
         }
-        if let Some(ref reloader) = self.mihomo_reloader {
-            let path = self.rule_storage.current_rules_path().to_string_lossy().to_string();
-            let _ = reloader.reload_config(&path);
+
+        // Step 2: Scan IPs for IpDirect sites
+        let (ip_hosts, direct_domains) = self.scan_ip_direct_sites();
+        let direct_domain_set: std::collections::HashSet<&String> = direct_domains.iter().collect();
+
+        // Step 3: Write per-site ruleset files (filtered by site domains + strategy)
+        if let Some(ref writer) = self.ruleset_writer {
+            for site_id in &self.active_sites {
+                if let Some(site) = self.site_store.get(site_id) {
+                    let site_domains = site.all_domains();
+                    let is_ip_direct = site.access_strategy == AccessStrategy::IpDirect;
+
+                    let site_rules: Vec<Rule> = rules
+                        .iter()
+                        .filter(|r| {
+                            if r.rule_type == "MATCH" {
+                                return false;
+                            }
+                            if !site_domains.contains(&r.domain) {
+                                return false;
+                            }
+                            // For IpDirect sites: only include domains that DON'T have
+                            // verified IPs (they'll use inline DIRECT rules instead)
+                            if is_ip_direct && direct_domain_set.contains(&r.domain) {
+                                return false;
+                            }
+                            true
+                        })
+                        .cloned()
+                        .collect();
+                    if let Err(e) = writer.write_site_ruleset(site_id, &site_rules) {
+                        eprintln!("Warning: failed to write ruleset for {site_id}: {e}");
+                    }
+                }
+            }
+            // Cleanup stale ruleset files
+            if let Err(e) = writer.cleanup_site_rulesets(&self.active_sites) {
+                eprintln!("Warning: failed to cleanup rulesets: {e}");
+            }
         }
+
+        // Step 4: Update config.yaml with per-site proxy groups + hosts + DIRECT rules
+        if let Some(ref cm) = self.config_manager {
+            let site_info = self.collect_active_site_info();
+            if let Ok(cm_lock) = cm.lock() {
+                if let Err(e) = cm_lock.regenerate(&site_info, &ip_hosts, &direct_domains) {
+                    eprintln!("Warning: failed to regenerate config: {e}");
+                }
+            }
+        }
+
+        // Step 4: Trigger mihomo reload
+        if let Some(ref reloader) = self.mihomo_reloader {
+            if let Err(e) = reloader.reload_config("") {
+                eprintln!("Warning: mihomo reload failed: {e}");
+            }
+        }
+    }
+
+    /// Collect `(site_id, health_check_url)` for all active sites.
+    fn collect_active_site_info(&self) -> Vec<(String, String)> {
+        self.active_sites
+            .iter()
+            .filter_map(|id| {
+                let site = self.site_store.get(id)?;
+                let url = site
+                    .health_check
+                    .as_ref()
+                    .map_or_else(
+                        || {
+                            site.all_domains()
+                                .first()
+                                .cloned()
+                                .unwrap_or_else(|| format!("https://{id}"))
+                        },
+                        |hc| hc.url.clone(),
+                    );
+                Some((site.id, url))
+            })
+            .collect()
     }
 
     fn log_audit_success(&self, action: AuditAction, target: &str) {
@@ -251,7 +483,23 @@ impl SiteRuleEngine {
 
     #[must_use]
     pub fn preview_rules(&self) -> Vec<String> {
-        let generated = self.generate_rules();
+        let mut generated = self.generate_rules();
+
+        // Collect domains from IpDirect sites — they should display as DIRECT
+        let ip_direct_domains: std::collections::HashSet<String> = self
+            .active_sites
+            .iter()
+            .filter_map(|id| self.site_store.get(id))
+            .filter(|site| site.access_strategy == AccessStrategy::IpDirect)
+            .flat_map(|site| site.all_domains())
+            .collect();
+
+        for rule in &mut generated.rules {
+            if ip_direct_domains.contains(&rule.domain) {
+                rule.policy = "DIRECT".to_string();
+            }
+        }
+
         generated.rules.iter().map(Rule::to_mihomo_line).collect()
     }
 
@@ -277,6 +525,24 @@ impl SiteRuleEngine {
     #[must_use]
     pub const fn active_sites_count(&self) -> usize {
         self.active_sites.len()
+    }
+
+    /// Load `active_sites` from JSON file. Returns empty vec if file missing or invalid.
+    fn load_active_sites(path: &std::path::Path) -> Vec<String> {
+        std::fs::read_to_string(path)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    }
+
+    /// Persist current `active_sites` to disk (best-effort).
+    fn persist_active_sites(&self) {
+        if let Ok(json) = serde_json::to_string_pretty(&self.active_sites) {
+            if let Some(parent) = self.active_sites_file.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&self.active_sites_file, json);
+        }
     }
 
     #[must_use]
@@ -326,24 +592,58 @@ impl SiteRuleEngine {
         self.user_overrides.len()
     }
 
-    pub fn reload_rules(&mut self) -> bool {
-        let generated = self.generate_rules();
-        let verification = self.verifier.verify(&generated.rules);
-        
-        matches!(verification, VerificationResult::Passed)
+    /// Background refresh: scan IPs and update cache without triggering mihomo reload.
+    pub fn refresh_ip_cache(&mut self) {
+        let mut ip_direct_domains: Vec<String> = Vec::new();
+        for site_id in &self.active_sites {
+            if let Some(site) = self.site_store.get(site_id) {
+                if site.access_strategy == AccessStrategy::IpDirect {
+                    ip_direct_domains.extend(site.all_domains());
+                }
+            }
+        }
+
+        if ip_direct_domains.is_empty() {
+            return;
+        }
+
+        let fresh = self.ip_scanner.scan_domains(&ip_direct_domains);
+        for (domain, ip) in &fresh {
+            self.ip_cache.update(domain.clone(), ip.clone());
+        }
+        let _ = self.ip_cache.save(&self.ip_cache_file);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::services::ip_scanner::MockIpScanner;
     use crate::services::probe_service::MockProbeClient;
     use crate::services::rule_generator::Rule;
     use tempfile::tempdir;
 
     fn create_test_engine(dir: &std::path::Path) -> SiteRuleEngine {
         let probe_client = Arc::new(MockProbeClient::new());
-        SiteRuleEngine::new(dir, probe_client, None, None)
+        let mock_scanner = Arc::new(MockIpScanner::new(HashMap::new()));
+        SiteRuleEngine::new_with_scanner(dir, probe_client, None, None, None, None, mock_scanner)
+    }
+
+    fn create_test_engine_with_reloader(dir: &std::path::Path, reloader: Option<Arc<dyn MihomoReloader>>) -> SiteRuleEngine {
+        let probe_client = Arc::new(MockProbeClient::new());
+        let mock_scanner = Arc::new(MockIpScanner::new(HashMap::new()));
+        SiteRuleEngine::new_with_scanner(dir, probe_client, reloader, None, None, None, mock_scanner)
+    }
+
+    fn create_test_engine_with_audit(dir: &std::path::Path, audit: Option<Arc<dyn AuditLog>>) -> SiteRuleEngine {
+        let probe_client = Arc::new(MockProbeClient::new());
+        let mock_scanner = Arc::new(MockIpScanner::new(HashMap::new()));
+        SiteRuleEngine::new_with_scanner(dir, probe_client, None, audit, None, None, mock_scanner)
+    }
+
+    fn create_test_engine_with_probe(dir: &std::path::Path, probe_client: Arc<dyn ProbeClient>) -> SiteRuleEngine {
+        let mock_scanner = Arc::new(MockIpScanner::new(HashMap::new()));
+        SiteRuleEngine::new_with_scanner(dir, probe_client, None, None, None, None, mock_scanner)
     }
 
     #[test]
@@ -516,11 +816,12 @@ mod tests {
     }
 
     #[test]
-    fn reload_rules_empty() {
+    fn refresh_ip_cache_empty() {
         let dir = tempdir().expect("tempdir");
         let mut engine = create_test_engine(dir.path());
-        
-        assert!(engine.reload_rules());
+
+        engine.refresh_ip_cache();
+        // No panic = success for empty engine
     }
 
     #[test]
@@ -588,7 +889,7 @@ mod tests {
             npmjs_probed: npmjs_probed_clone,
         };
         let probe_client = Arc::new(client);
-        let mut engine = SiteRuleEngine::new(dir.path(), probe_client, None, None);
+        let mut engine = create_test_engine_with_probe(dir.path(), probe_client);
 
         let _result = engine.add_site("npmjs");
         let _reach = engine.probe_site("npmjs");
@@ -600,8 +901,7 @@ mod tests {
     #[test]
     fn user_overrides_appear_in_generated_rules() {
         let dir = tempdir().expect("tempdir");
-        let probe_client = Arc::new(MockProbeClient::new());
-        let mut engine = SiteRuleEngine::new(dir.path(), probe_client, None, None);
+        let mut engine = create_test_engine(dir.path());
 
         engine.add_site("github");
 
@@ -616,8 +916,7 @@ mod tests {
     #[test]
     fn user_overrides_deduplicates() {
         let dir = tempdir().expect("tempdir");
-        let probe_client = Arc::new(MockProbeClient::new());
-        let mut engine = SiteRuleEngine::new(dir.path(), probe_client, None, None);
+        let mut engine = create_test_engine(dir.path());
 
         engine.add_user_override(Rule::domain_exact("dup.com".to_string()));
         engine.add_user_override(Rule::domain_exact("dup.com".to_string()));
@@ -628,11 +927,10 @@ mod tests {
     #[test]
     fn add_site_calls_mihomo_reload_on_success() {
         let dir = tempdir().expect("tempdir");
-        let probe_client = Arc::new(MockProbeClient::new());
         let reloader = Arc::new(crate::managers::mihomo_manager::MockMihomoReloader::new());
         let reloader_ref = reloader.clone();
 
-        let mut engine = SiteRuleEngine::new(dir.path(), probe_client, Some(reloader), None);
+        let mut engine = create_test_engine_with_reloader(dir.path(), Some(reloader));
 
         let result = engine.add_site("github");
         assert!(matches!(result, AddSiteResult::Success { .. }));
@@ -641,13 +939,8 @@ mod tests {
 
     #[test]
     fn add_site_no_reload_on_verification_failure() {
-        // This test verifies that when verification fails, mihomo is NOT reloaded
-        // Since MockProbeClient returns reachable by default, verification always passes.
-        // We test the negative case by using None reloader (no crash = passes).
         let dir = tempdir().expect("tempdir");
-        let probe_client = Arc::new(MockProbeClient::new());
-
-        let engine = SiteRuleEngine::new(dir.path(), probe_client, None, None);
+        let engine = create_test_engine(dir.path());
         // Engine works fine without mihomo reloader
         assert_eq!(engine.active_sites_count(), 0);
     }
@@ -655,9 +948,7 @@ mod tests {
     #[test]
     fn engine_works_without_mihomo_reloader() {
         let dir = tempdir().expect("tempdir");
-        let probe_client = Arc::new(MockProbeClient::new());
-
-        let mut engine = SiteRuleEngine::new(dir.path(), probe_client, None, None);
+        let mut engine = create_test_engine(dir.path());
         let result = engine.add_site("github");
         assert!(matches!(result, AddSiteResult::Success { .. }));
     }
@@ -665,11 +956,10 @@ mod tests {
     #[test]
     fn add_site_logs_audit_success() {
         let dir = tempdir().expect("tempdir");
-        let probe_client = Arc::new(MockProbeClient::new());
         let audit = Arc::new(crate::services::audit_logger::MockAuditLog::new());
         let audit_ref = audit.clone();
 
-        let mut engine = SiteRuleEngine::new(dir.path(), probe_client, None, Some(audit));
+        let mut engine = create_test_engine_with_audit(dir.path(), Some(audit));
 
         let result = engine.add_site("github");
         assert!(matches!(result, AddSiteResult::Success { .. }));
@@ -683,11 +973,10 @@ mod tests {
     #[test]
     fn remove_site_logs_audit() {
         let dir = tempdir().expect("tempdir");
-        let probe_client = Arc::new(MockProbeClient::new());
         let audit = Arc::new(crate::services::audit_logger::MockAuditLog::new());
         let audit_ref = audit.clone();
 
-        let mut engine = SiteRuleEngine::new(dir.path(), probe_client, None, Some(audit));
+        let mut engine = create_test_engine_with_audit(dir.path(), Some(audit));
         engine.add_site("github");
 
         let result = engine.remove_site("github");
