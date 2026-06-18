@@ -1,0 +1,21 @@
+{
+  "name": "goguo-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "GoGuo E2E tests (WebDriverIO + tauri-driver)",
+  "type": "module",
+  "scripts": {
+    "test": "wdio run ./wdio.conf.ts",
+    "test:headed": "GDK_BACKEND=x11 wdio run ./wdio.conf.ts"
+  },
+  "devDependencies": {
+    "@wdio/cli": "^9.0.0",
+    "@wdio/local-runner": "^9.0.0",
+    "@wdio/mocha-framework": "^9.0.0",
+    "@wdio/spec-reporter": "^9.0.0",
+    "@wdio/tauri-service": "^1.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.0",
+    "webdriverio": "^9.0.0"
+  }
+}
