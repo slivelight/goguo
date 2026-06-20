@@ -1,5 +1,7 @@
 # FR 追溯矩阵
 
+> **配套文档**：能力的 L1~L5 分工见 [test-level-matrix.md](./test-level-matrix.md)（本文档追溯"FR → 测试函数"1:1 关系，level-matrix 追溯"能力 → 测试等级"多对多分工）。
+
 - **Feature**: F113 三层测试重构
 - **日期**: 2026-06-12
 - **测试套件**: `cargo test --test fr_acceptance` + `pnpm test -- fr_`

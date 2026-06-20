@@ -48,6 +48,7 @@
 - 测试纪律：fresh evidence / RED-GREEN / Two Hats（见 `docs/principles/architectural-health-during-tdd.md`）；三层测试方法论——FR 验收测试 / 契约测试 / 管道集成测试（见 `docs/principles/testing-principles.md`）
 - 架构原则锚点：☐ `docs/principles/architecture-principles.md`（未启用时由 soul + sdd-artifact-layout 兜底）
 - 设计原则锚点路径（hf-design 读取）：`docs/principles/`
+- 测试设计强制规范：§7（所有新 Feature 必填"L1~L5 自动化测试设计"章节，详细条款见 `docs/principles/testing-principles.md` §"L1~L5 自动化测试设计强制规范"；等级矩阵见 `docs/test-level-matrix.md`）
 
 ## 5. Definition of Done 项目附加项
 
@@ -70,3 +71,22 @@
 - 隐私 / 安全 / 合规相关声明：
   - 所有用户数据默认存储在 OS 标准应用目录，不上传 Remote Server
   - 敏感操作：涉及本地文件写入、系统命令执行的 API 必须二次确认 + 审计日志
+
+## 7. Feature 自动化测试设计强制规范
+
+> 详细条款、HF 全流程检查点、显式豁免清单说明见 `docs/principles/testing-principles.md` §"L1~L5 自动化测试设计强制规范"。
+> 立项日期：2026-06-18（F115 建立）；适用范围：所有新立项 Feature 与新启动的 fix Feature。
+
+### 7.1 强制条款（摘要）
+
+- **条款 1**：`hf-design` 必须输出 `§N L1~L5 自动化测试设计` 章节（模板：`docs/principles/test-design-section-template.md`），作为 design.md 必填章节。
+- **条款 2**：该章节未通过 review **不得进入** `hf-tasks` 阶段。
+- **条款 3**：章节必须同时覆盖 **UX 能力（L4/L5）** 与 **非 UI 能力（L1/L2/L3）**，每条 FR 给出测试用例 + 数据 + 脚本入口。
+- **条款 4**：`hf-finalize` 必须验证该章节中所有声明的测试已实现且通过，否则不通过完成门。
+
+### 7.2 引用关系
+
+- 强制规范详细条款：`docs/principles/testing-principles.md` §"L1~L5 自动化测试设计强制规范"
+- 章节模板：`docs/principles/test-design-section-template.md`
+- 测试等级矩阵：`docs/test-level-matrix.md`
+- 仓库根 `README.md` "当前活动特性"附近已加提示文案（FR-2.4.3-R3）

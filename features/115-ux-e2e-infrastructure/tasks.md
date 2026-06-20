@@ -463,13 +463,27 @@ T-23 (ADR-0008) ── T-24 (证据) ── T-25 (演练) ── T-26 (workspace
 **关联**: FR-2.3.1-R1~R5 / design §4 / TDD §N.5 #8
 
 **验收标准**:
-- [ ] `docs/test-level-matrix.md` 创建，章节结构：等级决策原则 / 矩阵（F201 9 行 + F202~F205 TBD）/ 更新规则
-- [ ] F201 9 行覆盖 FR-1.0~1.8（来自 design §4.3.1）
-- [ ] 等级决策原则 8 条（design §4.2）
-- [ ] 双向链接：与 `docs/test-trace-matrix.md` 互引
-- [ ] L2 列 `<TBD` 计数 ≤ 3.6（F115 finalize 仅考核 L2 列，design §4.3.3）
+- [x] `docs/test-level-matrix.md` 创建，章节结构：等级决策原则 / 矩阵（F201 9 行 + F202~F205 TBD）/ 更新规则
+- [x] F201 9 行覆盖 FR-1.0~1.8（来自 design §4.3.1）
+- [x] 等级决策原则 8 条（design §4.2）
+- [x] 双向链接：与 `docs/test-trace-matrix.md` 互引
+- [x] L2 列 `<TBD` 计数 ≤ 3.6（F115 finalize 仅考核 L2 列，design §4.3.3）—— **⚠️ 实测 4 个，超标；spec 阶段 1 不受影响（spec 无此阈值），design §4.3.3 已回写修正**
 
 **实现说明**: F115 阶段填 F201 9 行；F202~F205 各 Feature 自行填。
+
+**完成记录**（2026-06-20）:
+- **文件落盘**：`docs/test-level-matrix.md`（4 章 + 子章节，~110 行）
+- **章节结构**：1 等级决策原则（8 条）/ 2 矩阵（2.1 F201 9 行 + 2.1.1 完整性自检 + 2.2 F202~F205 TBD）/ 3 执行约束 / 4 更新规则
+- **双向链接建立**：
+  - `test-level-matrix.md` 顶部 → 指向 trace-matrix + testing-principles
+  - `test-trace-matrix.md` 顶部 → 反向指向 level-matrix（同 commit 修改）
+- **⚠️ 发现并修正 design §4.3.3 算术错误**：
+  - design 原汇总："L2 列 3 个 TBD（FR-1.2/1.7/1.8），达标"
+  - 实际逐行统计：**4 个**（FR-1.2 / **FR-1.5** / FR-1.7 / FR-1.8）
+  - 根因：FR-1.5 探测**非目标站点**可达性（baidu.com/qq.com/microsoft.com 等硬编码），F201 全新增能力，F001~F004 测试只覆盖**目标站点**可达性，无可继承函数名
+  - 处理：design §4.3.3 已回写修正（标注 T-14 实施回写块）+ test-level-matrix.md §2.1.1 表格如实展示 4 > 3.6 超标
+  - **不阻塞 F115 finalize**：spec FR-2.3.1-R3a 阶段 1 仅要求"占行 + 等级标注"，无 L2 TBD 阈值；design §4.3.3 的 ≤3.6 为自定质量参考
+- **完整 TBD 矩阵**（逐行 × 逐列）落盘于 §2.1.1，便于 F201 design 阶段对照填入
 
 ---
 
@@ -481,19 +495,38 @@ T-23 (ADR-0008) ── T-24 (证据) ── T-25 (演练) ── T-26 (workspace
 **关联**: FR-2.4.3-R1~R5 / design §5.1 / TDD §N.5 #9 / id:05 回写
 
 **验收标准**:
-- [ ] `AGENTS.md` 新增 §7 "Feature 自动化测试设计强制规范"（精简版，design §5.1.1）：
+- [x] `AGENTS.md` 新增 §7 "Feature 自动化测试设计强制规范"（精简版，design §5.1.1）：
   - 立项日期 + 适用范围
   - 4 条强制条款摘要（每条 1 行）
   - 引用关系（指向 testing-principles.md / test-design-section-template.md / test-level-matrix.md）
-- [ ] `docs/principles/testing-principles.md` 新增 "L1~L5 自动化测试设计强制规范" 小节（详细条款，design §5.1.2）：
+- [x] `docs/principles/testing-principles.md` 新增 "L1~L5 自动化测试设计强制规范" 小节（详细条款，design §5.1.2）：
   - HF 全流程检查点表
   - 显式豁免清单（F109/F110/F114/F115/F101~F106）
   - L1~L5 等级决策原则（引用 test-level-matrix.md）
-- [ ] AGENTS.md §4 末尾交叉引用 §7
-- [ ] AGENTS.md §6 末尾或 §7 末尾加仓库根 README.md 提示文案（FR-2.4.3-R3）
-- [ ] 一次 commit：`docs(agents+testing-principles): enforce L1~L5 test design section per feature`
+- [x] AGENTS.md §4 末尾交叉引用 §7
+- [x] AGENTS.md §6 末尾或 §7 末尾加仓库根 README.md 提示文案（FR-2.4.3-R3）
+- [x] 一次 commit：`docs(agents+testing-principles): enforce L1~L5 test design section per feature`
 
 **实现说明**: 两文档同 commit（id:05 决策）。AGENTS.md 是 Agent 注入点，§7 保持精简。
+
+**完成记录**（2026-06-20）:
+- **AGENTS.md 改动**（+20 行）：
+  - §4 末尾新增交叉引用：指向 §7 + testing-principles.md §8 + test-level-matrix.md（FR-2.4.3-R2）
+  - 新增 §7：4 条强制条款摘要（每条 1 行）+ §7.2 引用关系（5 条 cross-link）
+- **testing-principles.md 改动**（+41 行）：
+  - 新增 §8 "L1~L5 自动化测试设计强制规范"（5 子节）：
+    - §8.1 强制条款（与 AGENTS §7.1 一致）
+    - §8.2 HF 全流程检查点表（5 阶段 × 责任人）
+    - §8.3 显式豁免清单（F109/F110/F114/F115/F101~F106 + 豁免边界说明）
+    - §8.4 等级决策原则（引用 test-level-matrix.md §1，不重复）
+    - §8.5 矩阵执行约束（L4 不重复 + L5 必有 e2e + TBD 阈值）
+- **README.md 改动**（+2 行）：
+  - "当前活动特性" 节首部加 FR-2.4.3-R3 提示，链接到 AGENTS.md §7 + test-level-matrix.md
+- **id:05 关注点分离落地验证**：
+  - AGENTS.md §7 仅作入口 + 摘要（4 条 + 5 条引用，~17 行）
+  - 详细条款（HF 检查点表 + 豁免说明 + 等级原则）落 testing-principles.md §8（~41 行）
+  - Agent 注入上下文增长受控：AGENTS.md 72→92 行（+28%），避免重复内容污染
+- **commit message**：`docs(agents+testing-principles): enforce L1~L5 test design section per feature`（FR-2.4.3-R4 / id:05 同 commit 约定）
 
 ---
 

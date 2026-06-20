@@ -132,3 +132,44 @@ cargo test fr_ -- -Z unstable-options --format json | python3 scripts/verify-fr-
 | 管道集成测试 | 断言端到端数据流连通的测试 |
 | 可观测结果 | 用户通过 UI 或系统状态可直接感知的变化（如进程存在/不存在、注册表值、文件内容） |
 | 追溯矩阵 | FR ID → 测试函数名 → 状态的映射表 |
+
+## 8. L1~L5 自动化测试设计强制规范
+
+> 来源：F115（2026-06-18 立项）。AGENTS.md §7 入口指向本节。
+> 配套：`docs/test-level-matrix.md`（等级分工）、`docs/principles/test-design-section-template.md`（§N 章节模板）。
+
+### 8.1 强制条款（与 AGENTS.md §7.1 摘要一致）
+
+- **条款 1**：`hf-design` 必须输出 `§N L1~L5 自动化测试设计` 章节（模板：`docs/principles/test-design-section-template.md`），作为 design.md 必填章节。
+- **条款 2**：该章节未通过 review **不得进入** `hf-tasks` 阶段——即编码启动前必须完成测试设计。
+- **条款 3**：章节必须同时覆盖 **UX 能力（L4/L5）** 与 **非 UI 能力（L1/L2/L3）**，对每条 FR 给出测试用例 + 数据 + 脚本入口。
+- **条款 4**：`hf-finalize` 必须验证该章节中所有声明的测试已实现且通过，否则不通过完成门。
+
+### 8.2 HF 全流程检查点
+
+| HF 阶段 | 检查点 | 责任人 |
+|---------|-------|-------|
+| `hf-specify` | 矩阵为本 Feature 占行（FR ID + 等级标注，函数名允许 `<TBD by design>`） | spec 作者 |
+| `hf-design` | design.md 含完整 §N "L1~L5 自动化测试设计"章节；矩阵函数名填齐；测试用例 + 数据 + 脚本设计完成 | design 作者 |
+| `hf-tasks` | tasks.md 拆解时含每条测试的实施 task（按 §N.5 顺序） | tasks 作者 |
+| `hf-test-driven-dev` | 按 §N.5 RED-GREEN 执行；不允许跳过 L1~L5 任意层 | 实施者 |
+| `hf-finalize` | 验证 §N 中所有声明的测试已实现且通过；矩阵本 Feature 行内 `<TBD` 计数 = 0 | finalize 审查 |
+
+### 8.3 显式豁免清单（不要求补 §N 章节）
+
+- **F109 / F110**：F115 立项前已进入 design 阶段，回溯补章节成本高于收益；按"原 spec/design 为 authority source"模式推进，待启动后按"新启动 fix Feature"对待时若 review 认为必要再补
+- **F114**：UI E2E PoC，产物为 PoC 报告，不进入正式 Feature 工件流
+- **F115**：本规范的建立 Feature，避免循环依赖
+- **F101~F106**：v0.1.0 审计发现的待办修复项，尚未启动；启动时按"新启动 fix Feature"对待（即需补 §N 章节）
+
+> 豁免清单仅豁免"补 §N 章节"硬要求；其它测试纪律（三层测试方法论、RED-GREEN）仍适用。
+
+### 8.4 L1~L5 等级决策原则
+
+8 条能力特征 → 测试等级的映射原则见 [`docs/test-level-matrix.md`](../test-level-matrix.md) §1。本节不重复，仅引用。
+
+### 8.5 矩阵执行约束
+
+- **L4 能力不重复在 e2e/ 实现**（避免冗余；L4 = vitest+RTL 已覆盖组件级行为）
+- **L5 能力必须有 e2e spec 承接**（端到端真实环境不可被低层替代）
+- 矩阵 TBD 阈值：本 Feature finalize 时，本 Feature 行内 `<TBD` 计数 = 0（spec FR-2.3.1-R3a 阶段 2）
