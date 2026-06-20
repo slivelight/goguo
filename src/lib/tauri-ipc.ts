@@ -96,6 +96,10 @@ export async function removeTargetSite(siteId: string): Promise<RemoveSiteRespon
   return invoke('remove_target_site', { siteId });
 }
 
+export async function listTargetSites(): Promise<string[]> {
+  return invoke('list_target_sites');
+}
+
 export async function applyPresetTemplate(template: string): Promise<TemplateResponse> {
   return invoke('apply_preset_template', { template });
 }

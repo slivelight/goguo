@@ -217,7 +217,7 @@ pub fn remove_target_site(
 ) -> RemoveSiteResponse {
     let mut engine = state.engine.lock().expect("lock");
     let result = engine.remove_site(&site_id);
-    
+
     match result {
         RemoveSiteResult::Success { remaining_sites } => RemoveSiteResponse {
             success: true,
@@ -230,6 +230,21 @@ pub fn remove_target_site(
             error: Some("Site not found".to_string()),
         },
     }
+}
+
+/// Returns the list of currently active site IDs (F115 FR-2.2.5).
+///
+/// Read-only command backing the e2e `resetGoGuoState()` helper
+/// (`e2e/helpers/state.ts`). Reuses the existing
+/// `SiteRuleEngine::active_sites()` accessor (returns `&Vec<String>`);
+/// holds the engine lock only for the duration of the clone — no mihomo
+/// reload, no audit-log write, safe for `beforeEach` invocation.
+#[tauri::command]
+#[must_use]
+#[allow(clippy::needless_pass_by_value)]
+pub fn list_target_sites(state: tauri::State<'_, SiteRulesState>) -> Vec<String> {
+    let engine = state.engine.lock().expect("lock");
+    engine.active_sites().clone()
 }
 
 #[tauri::command]

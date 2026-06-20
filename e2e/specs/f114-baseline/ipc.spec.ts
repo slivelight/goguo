@@ -8,36 +8,29 @@
  *     ─▶ Rust tauri::command ─▶ SiteRulesState ─▶ 响应
  *
  * 不依赖 UI 按钮，直接走 invoke。这样能严格区分 QG2（IPC）与未来 L4（UI 行为）。
+ *
+ * F115 T-07：beforeEach 调用 resetGoGuoState()（FR-2.2.1-R3），
+ * 每个 it 都从干净状态开始（add_target_site 不受前一 it 残留影响）。
  */
+import {
+  invokeTauri,
+  isTauriInvokeError,
+} from "../../helpers/tauri-ipc";
+import { resetGoGuoState } from "../../helpers/state";
 
-async function invokeTauri<T = unknown>(
-  cmd: string,
-  args: Record<string, unknown>,
-): Promise<T> {
-  return browser.executeAsync((cmd, args, done) => {
-    const internals = (window as unknown as {
-      __TAURI_INTERNALS__?: { invoke: (c: string, a?: unknown) => Promise<unknown> };
-    }).__TAURI_INTERNALS__;
-    if (!internals?.invoke) {
-      done({ __error: "TAURI_INTERNALS_MISSING" });
-      return;
-    }
-    internals.invoke(cmd, args).then(done, (e: unknown) =>
-      done({ __error: String(e) }),
-    );
-  }, cmd, args) as Promise<T>;
-}
+describe("F114: GoGuo IPC roundtrip", () => {
+  beforeEach(async () => {
+    await resetGoGuoState();
+  });
 
-describe("GoGuo IPC roundtrip", () => {
   it("add_target_site('github') 应返回成功响应且 site.id 正确", async () => {
     const resp = await invokeTauri<{
       success?: boolean;
       site?: { id?: string; name?: string };
       error?: string;
-      __error?: string;
     }>("add_target_site", { siteId: "github" });
 
-    if (resp.__error) {
+    if (isTauriInvokeError(resp)) {
       throw new Error(`IPC 调用失败: ${resp.__error}`);
     }
     expect(resp.success).toBe(true);
@@ -51,6 +44,10 @@ describe("GoGuo IPC roundtrip", () => {
       "add_target_site",
       { siteId: "github" },
     );
+    if (isTauriInvokeError(resp)) {
+      // IPC 通道本身失败不算幂等失败，重新调用判定
+      throw new Error(`IPC 调用失败: ${resp.__error}`);
+    }
     expect(resp.success === true || typeof resp.error === "string").toBe(true);
   });
 });

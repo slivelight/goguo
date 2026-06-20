@@ -84,6 +84,9 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        // F115 FR-2.2.3-R2: tauri-plugin-wdio 注册（@wdio/tauri-service v1.1.0 配套）。
+        // 全 profile 启用；ADR-0008 记录"生产 Cargo.toml 引入测试专用 plugin"取舍。
+        .plugin(tauri_plugin_wdio::init())
         .setup(|app| {
             // Verify GDK_BACKEND was set before GTK init
             let gdk_backend = std::env::var("GDK_BACKEND").unwrap_or_else(|_| "not set".to_string());
@@ -152,6 +155,7 @@ pub fn run() {
             commands::baseline::tauri_get_network_mode,
             commands::site_rules::add_target_site,
             commands::site_rules::remove_target_site,
+            commands::site_rules::list_target_sites,
             commands::site_rules::apply_preset_template,
             commands::site_rules::preview_rules,
             commands::site_rules::refresh_ip_cache,

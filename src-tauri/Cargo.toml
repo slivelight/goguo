@@ -20,6 +20,12 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+# F115 FR-2.2.3-R1: tauri-plugin-wdio 与 @wdio/tauri-service v1.1.0 配套（Execute API +
+# mock store + 日志转发）。当前 helpers 走 window.__TAURI_INTERNALS__.invoke() 不依赖
+# 该插件专属 API，但注册后：消除"Tauri plugin not available"告警（FR-2.2.3-R3）+ 为
+# 未来 L4 UX 用例（browser.tauri.execute / mock）预留能力。全 profile 启用（OQ-2
+# 决策），体积/启动影响见 T-09 实测。
+tauri-plugin-wdio = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }

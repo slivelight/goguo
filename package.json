@@ -9,10 +9,15 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "pnpm exec vitest run",
-    "test:watch": "pnpm exec vitest"
+    "test:watch": "pnpm exec vitest",
+    "test:e2e": "cd e2e && pnpm test",
+    "test:all": "pnpm test && pnpm test:e2e",
+    "test:feature": "node scripts/test-feature.mjs",
+    "test:e2e:feature": "cd e2e && pnpm test:e2e:feature"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
+    "@wdio/tauri-plugin": "^1.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.15.1",

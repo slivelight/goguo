@@ -249,3 +249,56 @@ fn fr_sc_5_five_element_diag() {
     // FiveElementPrompt structure exists in code but
     // production path not fully wired
 }
+
+// ── F115 FR-2.2.5: list_target_sites 只读查询命令 ─────────────────────────
+//
+// Tauri 命令 `list_target_sites(state)` 是 2 行薄壳（lock + active_sites().clone()），
+// 故 FR 验收测试在 engine 层验证（与既有 f003 测试惯例一致）。
+// 命令注册与 IPC 通道由 `cargo build` + e2e smoke spec 验证。
+
+/// FR-2.2.5-R2 case 1: 空 active_sites 返回空 Vec。
+/// 可观测结果：fresh engine 的 active_sites() 长度为 0。
+#[test]
+fn fr_2_2_5_case1_empty() {
+    let state = setup_site_rules_with_nodes();
+    let sites = state.engine.active_sites();
+    assert!(sites.is_empty(), "FR-2.2.5-R2 case1: fresh engine must have empty active_sites");
+}
+
+/// FR-2.2.5-R2 case 2: add 一个站点后 list 包含该 id。
+#[test]
+fn fr_2_2_5_case2_single_site() {
+    let mut state = setup_site_rules_with_nodes();
+    let _ = state.engine.add_site("github");
+    let sites = state.engine.active_sites();
+    assert_eq!(sites.len(), 1, "FR-2.2.5-R2 case2: exactly one site after single add");
+    assert_eq!(sites[0], "github", "FR-2.2.5-R2 case2: site id must match");
+}
+
+/// FR-2.2.5-R2 case 3: 多站点 add 后 list 包含全部 id（顺序与 add 一致）。
+#[test]
+fn fr_2_2_5_case3_multiple_sites() {
+    let mut state = setup_site_rules_with_nodes();
+    let _ = state.engine.add_site("github");
+    let _ = state.engine.add_site("npmjs");
+    let sites = state.engine.active_sites();
+    assert_eq!(sites.len(), 2, "FR-2.2.5-R2 case3: two sites after two adds");
+    assert!(sites.contains(&"github".to_string()), "case3: must contain github");
+    assert!(sites.contains(&"npmjs".to_string()), "case3: must contain npmjs");
+}
+
+/// FR-2.2.5-R2 case 4: add 后 remove，list 反映删除。
+/// 同时验证 FR-2.2.5-R5（只读：连续 2 次调用返回相同）。
+#[test]
+fn fr_2_2_5_case4_after_remove_and_readonly() {
+    let mut state = setup_site_rules_with_nodes();
+    let _ = state.engine.add_site("github");
+    let _ = state.engine.add_site("npmjs");
+    let _ = state.engine.remove_site("github");
+
+    let sites1 = state.engine.active_sites();
+    let sites2 = state.engine.active_sites();
+    assert_eq!(sites1.len(), 1, "FR-2.2.5-R2 case4: one site remains after remove");
+    assert_eq!(sites1[0], "npmjs", "FR-2.2.5-R2 case4: remaining site must be npmjs");
+    assert_eq!(sites1, sites2, "FR-2.2.5-R5: two consecutive reads must return identical values (readonly)");
+}
