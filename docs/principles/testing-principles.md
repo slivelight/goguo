@@ -172,6 +172,7 @@ cargo test fr_ -- -Z unstable-options --format json | python3 scripts/verify-fr-
 
 - **L4 能力不重复在 e2e/ 实现**（避免冗余；L4 = vitest+RTL 已覆盖组件级行为）
 - **L5 能力必须有 e2e spec 承接**（端到端真实环境不可被低层替代）
+- **跨层冗余禁止**（spec FR-2.3.2-R1 扩展约束）：同一能力在多等级出现时**取最高等级作为必须覆盖项**，低层不作强制重复——实施细则见 [§9.1](#91-应用约束与-85-一致)（例如：跨 IPC 数据流既可写 L2 断言也可写 L5 e2e，必须至少有 L5；L2 作为补充覆盖可选不强制）。此条与 §9.1 应用约束互为表里：§8.5 为强制条款入口，§9.1 为决策细则。
 - 矩阵 TBD 阈值：本 Feature finalize 时，本 Feature 行内 `<TBD` 计数 = 0（spec FR-2.3.1-R3a 阶段 2）
 
 ---
