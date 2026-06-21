@@ -1,9 +1,9 @@
 # Feature 115: UX E2E 自动化测试基础设施正式化 — 任务拆解
 
 - **Feature**: 115-ux-e2e-infrastructure
-- **阶段**: `hf-tasks`（M2）→ 部分 M3 执行中（T-01/02/03/04a 已完成）
-- **状态**: 草稿 v1 + v3 勘误-2 同步（T-04 拆分为 T-04a + T-04b）
-- **日期**: 2026-06-19
+- **阶段**: `closed`（2026-06-21 workflow closeout，详见 [closeout.md](./closeout.md)）
+- **状态**: M3~M8 全部收口；27 tasks 中 26 完成，T-25 按 C-P4 隔离推迟到 F201 design 阶段
+- **日期**: 2026-06-19（tasks 落盘）→ 2026-06-21（closeout）
 - **上游设计**: [spec.md](./spec.md) v3 + v3 勘误 + v3 勘误-2 / [design.md](./design.md) M1（6 标注已闭环 + IPC 缺口已对齐）
 - **执行约束**:
   - 不修改 mihomo config（C-I5）/ 不改 e2e/.npmrc（C-I4）/ 不引入 CI/CD（C-T5）
