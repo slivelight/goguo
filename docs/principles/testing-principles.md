@@ -166,10 +166,38 @@ cargo test fr_ -- -Z unstable-options --format json | python3 scripts/verify-fr-
 
 ### 8.4 L1~L5 等级决策原则
 
-8 条能力特征 → 测试等级的映射原则见 [`docs/test-level-matrix.md`](../test-level-matrix.md) §1。本节不重复，仅引用。
+8 条能力特征 → 测试等级的映射原则详见本文件 [§9](#9-l1l5-等级决策原则)（自包含参考）+ [`docs/test-level-matrix.md`](../test-level-matrix.md) §1（权威矩阵视图）。本节为强制规范与原则之间的桥梁，不重复条款。
 
 ### 8.5 矩阵执行约束
 
 - **L4 能力不重复在 e2e/ 实现**（避免冗余；L4 = vitest+RTL 已覆盖组件级行为）
 - **L5 能力必须有 e2e spec 承接**（端到端真实环境不可被低层替代）
 - 矩阵 TBD 阈值：本 Feature finalize 时，本 Feature 行内 `<TBD` 计数 = 0（spec FR-2.3.1-R3a 阶段 2）
+
+---
+
+## 9. L1~L5 等级决策原则
+
+> **来源**：F115 spec FR-2.3.1-R4 / design §4.2。
+> **权威矩阵视图**：[`docs/test-level-matrix.md`](../test-level-matrix.md) §1（本节为 testing-principles 自包含重述，二者保持一致；如有差异以 test-level-matrix §1 为准）。
+> **互引**：本节被 [§8](#8-l1l5-自动化测试设计强制规范) 强制规范引用；本节引用 §8 强制规范作为应用约束。
+
+设计 `§N L1~L5 自动化测试设计` 章节（[test-design-section-template.md](./test-design-section-template.md)）时，每条 FR 的等级标注必须依据下表 8 条原则：
+
+| 能力特征 | 等级 | 依据 |
+|---------|------|------|
+| 跨进程数据流（IPC → 后端 → 响应 → UI 更新） | **L5** | 端到端真实环境，任何低层都无法替代 |
+| Tauri 事件订阅与前端响应 | **L5** | webview 特性，需真实运行时验证 |
+| Tauri webview 特性（X11/Wayland、IPC 时序、WebKitGTK） | **L5** | 平台特性，单元测试无法模拟 |
+| 跨页面状态同步（Zustand store 之外） | **L5** | 集成行为，组件级测试不可见 |
+| 单组件渲染、props、内部状态机 | **L4** | 组件级隔离，vitest+RTL 足够 |
+| 单 Rust 模块纯函数、数据结构 | **L1** | 单元，无 IO 无副作用 |
+| Rust trait 一致性、DTO 往返 | **L3** | 契约层，跨模块但非端到端 |
+| FR 级可观测行为（不依赖 UI） | **L2** | FR 验收，断言用户可感知结果 |
+
+### 9.1 应用约束（与 §8.5 一致）
+
+- 同一能力在多等级出现时，**取最高等级**作为必须覆盖项（例如：跨 IPC 数据流既可写 L2 断言也可写 L5 e2e，必须至少有 L5）
+- **L4 能力不重复在 e2e/ 实现**（避免冗余）
+- **L5 能力必须有 e2e spec 承接**
+- 等级原则可演进（spec FR-2.3.1-R4 允许 design 阶段调整，但需在 design.md 说明偏离理由）

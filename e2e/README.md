@@ -2,6 +2,39 @@
 
 基于 **WebDriverIO v9 + tauri-driver** 的桌面 E2E 测试套件。
 
+## Step 0: 开发环境首次配置（必读）
+
+> F115 FR-2.5.2-R1 引入。处理 **GAP-F115-2**（mihomo config 阻断 cargo/pnpm 流量）的开发态缓解；根因修复推到 F116+（详见 `features/110-design-gap-closure/design.md` §12 GAP-F115-2）。
+
+**一键配置**（推荐，M6 T-19 待实施；当前需手动）：
+
+```bash
+cd e2e && bash scripts/setup-dev-env.sh
+```
+
+**手动配置**：
+
+- `~/.cargo/config.toml` 加 `rsproxy-sparse` 镜像源（处理 cargo 流量阻断）：
+
+  ```toml
+  [source.rsproxy]
+  registry = "sparse+https://rsproxy.cn/index/"
+
+  [registries.rsproxy]
+  index = "sparse+https://rsproxy.cn/index/"
+
+  [source.crates-io]
+  replace-with = "rsproxy"
+  ```
+
+- `e2e/.npmrc` 含 npmmirror.com（C-I4 隔离策略，处理 pnpm 流量阻断）：
+
+  ```ini
+  registry=https://registry.npmmirror.com/
+  ```
+
+**校验**：`cargo install tauri-driver --dry-run` + `pnpm install --dry-run` 不报 SSL 错误。
+
 ## 架构
 
 ```
@@ -44,9 +77,11 @@ pnpm test
 GOGUO_BIN=/path/to/goguo pnpm test
 ```
 
-### 复用模式（日常开发，快 ~30s）
+### 复用模式（dev 体验可选项）
 
-外部预启 tauri-driver 常驻，wdio 跳过 @wdio/tauri-service 直连。每次跑 ~36s（省 ~30s，FR-2.2.2-R3 要求 ≥8s，**3.9x 超额**）。
+外部预启 tauri-driver 常驻，wdio 跳过 @wdio/tauri-service 直连。
+
+> **⚠️ 勘误-4 同步（2026-06-20）**：T-12 度量发现 **post-T-09（plugin 接入后）复用模式不再快于自启模式**——5 次均值复用 43.82s（stddev 14.90s，前 3 次稳定 33~34s，run 4/5 退化到 52s/66s）vs 自启 28.95s（stddev 2.40s）。复用模式现定位为 **dev 体验可选项**（避免每次 spawn driver 的固定开销 + 便于迭代调试），SC-2 ≤70s 核心达标由自启模式承担。复用模式 stddev 不稳定问题挂账 F116+ 排查。详见 `features/115-ux-e2e-infrastructure/spec.md` 勘误-4 + `evidence/benchmark-M4.md`。
 
 ```bash
 # 1. 预启 tauri-driver（幂等：已监听则直接 exit 0）
@@ -123,3 +158,32 @@ ls features/ | grep -E '^[0-9]'          # 现有 feature 目录
 | L1+L2+L3 后端 | `cargo test --workspace -- f<NNN>` | PASS（cargo 自然行为，0 tests run = exit 0） |
 | L4 前端 | `vitest run src/__tests__/**/*f<NNN>* --passWithNoTests` | PASS（`--passWithNoTests` 让"无匹配"= exit 0） |
 | L5 e2e | `cd e2e && pnpm test:e2e:feature -- <id>` | SKIP（`specs/<id>/` 不存在时优雅跳过） |
+
+## Feature 接入流程（FR-2.4.1-R1）
+
+新 Feature 接入 e2e 测试基础设施的 5 步：
+
+| Step | 动作 | 验证 |
+|------|------|------|
+| 1 | 在 `e2e/specs/f<NNN>-<slug>/` 创建目录 | `ls e2e/specs/` 看到新目录 |
+| 2 | 复用 `e2e/helpers/` 中的 helper，不 inline `__TAURI_INTERNALS__` | `pnpm lint`（FR-2.4.2-R1）全过 |
+| 3 | 在 `docs/test-level-matrix.md` 为本 Feature 每个 FR 添加 L1~L5 责任行 | 矩阵新行等级标注完整 |
+| 4 | spec 命名约定：`<scenario>-<action>.spec.ts`（如 `dashboard-eval-trigger.spec.ts`） | 文件名符合 |
+| 5 | 每个 spec 以 `describe("<Feature ID>: <scenario>")` 开头 | `pnpm lint` 校验通过 |
+
+**配套要求**（来自 AGENTS.md §7）：
+- `hf-design` 阶段必须在 design.md 中填写 `§N L1~L5 自动化测试设计` 章节（模板：`docs/principles/test-design-section-template.md`）
+- 章节未通过 review 不得进入 `hf-tasks`
+- F201 为首个按规范接入的 Feature 案例（FR-2.4.1-R2）
+
+## 已知限制（FR-2.5.2-R3）
+
+> F115 引入。多实例共存场景下的已知问题，**不在 F115 范围内修复**。详见 `features/110-design-gap-closure/design.md` §12 + GAP 索引 §9。
+
+| 限制 | 严重度 | 描述 | 移交 |
+|------|-------|------|------|
+| `/etc/environment` 多实例覆盖 | 🔴 HIGH | `~/apps/goguo`（生产）与 `target/release/goguo`（dev）同时运行时，`write_state` 互相覆盖 `/etc/environment` | F110 §12 GAP-F115-1（建议 F116+） |
+| mihomo config 阻断 cargo/pnpm | 🟡 MED | `site-crates` / `site-npmjs` ruleset 无 DIRECT 规则，开发态依赖 Step 0 镜像绕过 | F110 §12 GAP-F115-2 |
+| mihomo config dev/prod 拆分 | 🟢 LOW | 单一 config 文件耦合开发态与生产态规则，dev 改动可能影响 prod 行为 | F110 §12 GAP-F115-3 |
+
+> 当前缓解仅覆盖**开发态**镜像绕过（Step 0），**不影响**生产用户行为（spec C-I5 保持）。

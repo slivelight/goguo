@@ -538,13 +538,25 @@ T-23 (ADR-0008) ── T-24 (证据) ── T-25 (演练) ── T-26 (workspace
 **关联**: FR-2.4.4-R1~R3 / design §5.2 / TDD §N.5 #10 / id:06 回写
 
 **验收标准**:
-- [ ] `docs/principles/test-design-section-template.md` 创建，含完整版结构（FR > 5）+ 简化版结构（FR ≤ 5）
-- [ ] 阈值与简化规则表（design §5.2）
-- [ ] 完整版必填：N.1 / N.2.1~N.2.5 / N.5；可选：N.3 / N.4
-- [ ] **L4/L5 子节表格列结构**（id:06 回写）：`| spec 文件 | 操作序号 | 操作描述 | 期望结果 | 关联 FR |`
-- [ ] F115 design.md §N 是首案例参照（已自验证）
+- [x] `docs/principles/test-design-section-template.md` 创建，含完整版结构（FR > 5）+ 简化版结构（FR ≤ 5）
+- [x] 阈值与简化规则表（design §5.2）
+- [x] 完整版必填：N.1 / N.2.1~N.2.5 / N.5；可选：N.3 / N.4
+- [x] **L4/L5 子节表格列结构**（id:06 回写）：`| spec 文件 | 操作序号 | 操作描述 | 期望结果 | 关联 FR |`
+- [x] F115 design.md §N 是首案例参照（已自验证）
 
 **实现说明**: 与 design.md §5.2 草稿内容一致，落盘到宪法层路径。
+
+**完成记录**（2026-06-20）:
+- **文件落盘**：`docs/principles/test-design-section-template.md`（102 行，宪法层路径）
+- **章节结构**（7 节）：
+  1. 文件头（引用 AGENTS §7 + test-level-matrix + testing-principles §8 + F115 design.md §N 首案例）
+  2. 阈值与简化规则表（FR > 5 完整版 / FR ≤ 5 简化版 + OQ-9 决策说明）
+  3. 完整版结构（N.1 + N.2.1~N.2.5 + N.3 + N.4 + N.5）
+  4. 简化版结构（FR ≤ 5 单表）
+  5. 使用约束（4 条：章节位置 / 必填可选 / 不可跳层 / finalize 校验）
+- **id:06 回写落盘**：N.2.4 (L4) + N.2.5 (L5) 表格列统一为 5 列 `| spec 文件 | 操作序号 | 操作描述 | 期望结果 | 关联 FR |`，弃用旧 "describe/it + 渲染场景"；附 UX 写法约束说明 + 跨 spec 性质处理（finalize 度量脚本验证）
+- **FR-2.4.4-R3 首案例自验证**：F115 自身 design.md §N（line 976~）已按本模板填写（N.1 矩阵 + N.2.1~N.2.5 + N.5 TDD 顺序），作为后续 F201 等 Feature 的参照样本
+- **spec.md FR-2.4.4-R2 id:06 回写状态核对**：spec.md line 406 已含 "L4/L5 UX 用例写法约束" 回写块（2026-06-19 落盘），本 task 落地的模板文件与之一致，无新勘误
 
 ---
 
@@ -556,14 +568,24 @@ T-23 (ADR-0008) ── T-24 (证据) ── T-25 (演练) ── T-26 (workspace
 **关联**: FR-2.4.1-R1 / FR-2.5.2-R1/R3 / design §6.2 / TDD §N.5 #11
 
 **验收标准**:
-- [ ] e2e/README.md 新增三节：
+- [x] e2e/README.md 新增三节：
   - "Step 0: 开发环境首次配置（必读）"：引用 setup-dev-env.sh（T-19）
   - "Feature 接入流程"：5 步（FR-2.4.1-R1）
   - "已知限制"：3 项 GAP（/etc/environment 多实例 / mihomo config 阻断 / mihomo config dev/prod 拆分）
-- [ ] 已知限制表引用 F110 §12 + GAP 索引 §9
-- [ ] feature-id 清单（R7 降级，扫描 e2e/specs/ + features/）
+- [x] 已知限制表引用 F110 §12 + GAP 索引 §9
+- [x] feature-id 清单（R7 降级，扫描 e2e/specs/ + features/）
 
 **实现说明**: 已知限制不在 F115 范围修复，仅声明。
+
+**完成记录**（2026-06-20）:
+- **三节追加 + 勘误-4 同步**：e2e/README.md 125 → 189 行（+64 行）
+  - **Step 0**（文件开头，"架构"前）：FR-2.5.2-R1；引用 T-19 setup-dev-env.sh（M6 待落，标注"当前需手动"）+ 手动配置代码块（cargo rsproxy-sparse + e2e/.npmrc npmmirror）+ 校验命令
+  - **Feature 接入流程**（"三层职责与降级"后）：FR-2.4.1-R1 5 步表 + AGENTS.md §7 配套要求 + F201 首案例指向
+  - **已知限制**（文件末尾）：FR-2.5.2-R3 三 GAP 表（HIGH/MED/LOW）+ 指向 F110 §12 + C-I5 保持声明
+- **复用模式勘误-4 同步**：删除"快 ~30s"+"3.9x 超额"过时表述，改"dev 体验可选项"定位 + 引用 benchmark-M4.md（43.82s vs 28.95s）+ stddev 不稳定挂账 F116+
+- **FR-2.4.1-R1 5 步落盘**：Step 1 目录 / Step 2 helpers 复用 + `pnpm lint` / Step 3 矩阵新行 / Step 4 spec 命名 / Step 5 describe Feature ID
+- **3 GAP 交叉引用**：每条 GAP 都指向 `features/110-design-gap-closure/design.md §12`（GAP-F115-1/2/3）+ 文件头声明 GAP 索引 §9
+- **R7 自动补全降级方案保留**：现有 "可用 feature-id 清单" + `ls` 快捷方式两段不变（T-05 已落盘）
 
 ---
 
@@ -575,11 +597,21 @@ T-23 (ADR-0008) ── T-24 (证据) ── T-25 (演练) ── T-26 (workspace
 **关联**: FR-2.3.2-R2 / FR-2.6.2-R1 / TDD §N.5 #14
 
 **验收标准**:
-- [ ] `docs/principles/testing-principles.md` 新增 "L1~L5 等级决策原则" 小节（引用 test-level-matrix.md）
-- [ ] 小节内容与 design §4.2 八条原则一致
-- [ ] 与 T-15 落盘的"L1~L5 自动化测试设计强制规范"小节互引（同文件不同小节）
+- [x] `docs/principles/testing-principles.md` 新增 "L1~L5 等级决策原则" 小节（引用 test-level-matrix.md）
+- [x] 小节内容与 design §4.2 八条原则一致
+- [x] 与 T-15 落盘的"L1~L5 自动化测试设计强制规范"小节互引（同文件不同小节）
 
 **实现说明**: T-15 已在同文件加详细条款小节，T-18 补等级原则小节。可合并到 T-15 commit。
+
+**完成记录**（2026-06-21）:
+- **新增 §9 "L1~L5 等级决策原则"**（~17 行）：8 条原则表（与 design §4.2 / test-level-matrix §1 一致）+ §9.1 应用约束（4 条：取最高等级 / L4 不重复 / L5 必有 e2e / 等级原则可演进）
+- **§8.4 改为互引**：原"仅引用 test-level-matrix §1"改为双引用——本文件 §9（自包含参考）+ test-level-matrix §1（权威矩阵视图）+ 明确"如有差异以 test-level-matrix §1 为准"
+- **§9 双向互引**：§9 文件头互引 §8（强制规范应用此原则）+ test-level-matrix §1（权威）
+- **source of truth 策略**：
+  - test-level-matrix §1 = **权威**（矩阵直接使用，等级决策原始落点）
+  - testing-principles §9 = **自包含重述**（让阅读 testing-principles 的读者不跳文件即可获得原则，同时被 §8 强制规范应用）
+  - design §4.2 = **历史草稿**（已被 matrix §1 + principles §9 双双覆盖）
+- **8 条原则核对一致**：跨进程数据流/Tauri 事件/webview 特性/跨页面同步 → L5；单组件 → L4；单 Rust 模块 → L1；trait 一致性 → L3；FR 可观测 → L2
 
 ---
 
