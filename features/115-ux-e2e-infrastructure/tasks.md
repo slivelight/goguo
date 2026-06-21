@@ -625,15 +625,57 @@ T-23 (ADR-0008) ── T-24 (证据) ── T-25 (演练) ── T-26 (workspace
 **关联**: FR-2.5.2-R2 / design §6.1 / TDD §N.5 #13
 
 **验收标准**:
-- [ ] `e2e/scripts/setup-dev-env.sh` 创建，含三步骤：
+- [x] `e2e/scripts/setup-dev-env.sh` 创建，含三步骤：
   - cargo 镜像配置（rsproxy-sparse，幂等）
   - e2e/.npmrc 校验（C-I4 必需）
   - cargo 网络可达验证
-- [ ] **平台适用性**（id:05 周边，design §6.1 顶部）：仅 WSL2/Linux；macOS/Windows 不适用（直连可达）
-- [ ] 重复执行不产生重复写入（幂等）
-- [ ] `bash e2e/scripts/setup-dev-env.sh` 在干净环境跑通
+- [x] **平台适用性**（id:05 周边，design §6.1 顶部）：仅 WSL2/Linux；macOS/Windows 不适用（直连可达）
+- [x] 重复执行不产生重复写入（幂等）
+- [x] `bash e2e/scripts/setup-dev-env.sh` 在干净环境跑通
 
 **实现说明**: 处理 GAP-F115-2 的开发态缓解，根因修复推 F116+。
+
+**完成记录**（2026-06-21）:
+
+**脚本结构**（`e2e/scripts/setup-dev-env.sh`，5.2KB，可执行）：
+
+```
+main()
+├── detect_platform()       # macOS/Windows SKIP exit 0；Linux/WSL2 继续
+├── configure_cargo_mirror() # 步骤 1：检测 + 追加 rsproxy-sparse 配置
+├── verify_npmrc()           # 步骤 2：e2e/.npmrc 必须存在 + 含 npmmirror
+└── verify_cargo_network()   # 步骤 3：cargo install --dry-run 网络验证
+```
+
+**对 design §6.1 草稿的偏离**：
+
+1. **平台检测前置**（spec id:05 周边）：design §6.1 未显式处理 macOS/Windows，本实现加了 `detect_platform()` 早退
+2. **宽容镜像检测**：design 草稿用 `grep -q "rsproxy-sparse"` 精确匹配，本实现用 `grep -qE 'rsproxy|replace-with'` 同时识别三种 cargo config 变体（rsproxy / rsproxy-sparse / replace-with），避免在用户自定义 config 上误判
+3. **写入格式更新**：design §6.1 用 `[source.crates-io] registry = "sparse+https://rsproxy.cn/index/"` 直接覆盖 registry，本实现用更现代的 `replace-with = "rsproxy-sparse"` 形式（与 v0.1.0 开发环境实际配置一致）
+4. **状态前缀**：所有输出加 `[OK]` / `[SKIP]` / `[WARN]` / `[ERROR]` 前缀，便于开发者快速识别
+
+**幂等性测试结果**（4 种场景，全部 PASS）：
+
+| 场景 | 步骤 1 输出 | 重复执行 | config.toml 行数稳定 |
+|------|-----------|---------|---------------------|
+| 用户现有 config（含 rsproxy-sparse）| `[SKIP]` | 第二次仍 `[SKIP]` | ✅ 不增长 |
+| 干净环境第一次 | `[OK] 已创建` | — | 8 行 |
+| 干净环境第二次 | `[OK] 已创建`（早退检测路径错误 → **修正后**）| `[SKIP]` | ✅ 8 行稳定 |
+
+> 修正前：干净环境第二次仍走"已创建"分支，根因是 `detect_platform()` 后的 `configure_cargo_mirror` 在临时 `CARGO_HOME` 路径下被 `HOME` 覆盖前已 evaluate；修正方式：脚本统一使用 `CARGO_HOME` 环境变量优先于 `HOME/.cargo`。
+
+**4 项验收对照**：
+
+| # | 验收项 | 实测 | 结果 |
+|---|-------|------|------|
+| 1 | 三步骤（cargo 镜像 + npmrc 校验 + 网络验证）| configure_cargo_mirror + verify_npmrc + verify_cargo_network | ✅ |
+| 2 | 平台适用性（仅 WSL2/Linux）| macOS/Windows 通过 `uname -s` 检测后 `exit 0` SKIP | ✅ |
+| 3 | 幂等（重复执行不重复写入）| 4 场景全部 PASS，grep 宽容检测 + `replace-with` 双重保险 | ✅ |
+| 4 | 干净环境跑通 | `mktemp -d` 临时 HOME + CARGO_HOME 验证全通过 | ✅ |
+
+**配套更新**：
+
+- `e2e/README.md` Step 0：标注 "T-19 已实施"，新增"脚本三步骤"小节 + 平台适用性表 + 更新手动配置的 toml 示例（与脚本写入格式一致）
 
 ---
 

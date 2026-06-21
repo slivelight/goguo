@@ -6,25 +6,36 @@
 
 > F115 FR-2.5.2-R1 引入。处理 **GAP-F115-2**（mihomo config 阻断 cargo/pnpm 流量）的开发态缓解；根因修复推到 F116+（详见 `features/110-design-gap-closure/design.md` §12 GAP-F115-2）。
 
-**一键配置**（推荐，M6 T-19 待实施；当前需手动）：
+**一键配置**（推荐，FR-2.5.2-R2，T-19 已实施）：
 
 ```bash
 cd e2e && bash scripts/setup-dev-env.sh
 ```
 
-**手动配置**：
+脚本三步骤（幂等，重复执行不重复写入）：
+
+1. **cargo 镜像配置**：检测 `~/.cargo/config.toml` 是否含 rsproxy 配置（宽容识别 `rsproxy` / `rsproxy-sparse` / `replace-with` 变体），若无则追加
+2. **e2e/.npmrc 校验**：C-I4 隔离策略必需，文件必须存在且含 npmmirror 配置
+3. **cargo 网络可达验证**：`cargo install tauri-driver --dry-run` 触发镜像索引 fetch，检测 SSL_ERROR / network 错误
+
+**平台适用性**（id:05 周边）：
+
+| 平台 | 行为 |
+|------|------|
+| WSL2 / Linux | 执行三步骤（mihomo 阻断影响）|
+| macOS / Windows | SKIP exit 0（直连 crates.io / npmjs.org 可达）|
+
+**手动配置**（当脚本不可用或需定制时）：
 
 - `~/.cargo/config.toml` 加 `rsproxy-sparse` 镜像源（处理 cargo 流量阻断）：
 
   ```toml
-  [source.rsproxy]
+  [source.rsproxy-sparse]
   registry = "sparse+https://rsproxy.cn/index/"
 
-  [registries.rsproxy]
-  index = "sparse+https://rsproxy.cn/index/"
-
   [source.crates-io]
-  replace-with = "rsproxy"
+  registry = "sparse+https://index.crates.io/"
+  replace-with = "rsproxy-sparse"
   ```
 
 - `e2e/.npmrc` 含 npmmirror.com（C-I4 隔离策略，处理 pnpm 流量阻断）：
